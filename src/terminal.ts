@@ -83,7 +83,7 @@ export class PtyManager {
     const id = randomUUID();
     const shell = process.env.SHELL || (os.platform() === 'win32' ? 'powershell.exe' : '/bin/zsh');
 
-    const proc = pty.spawn(shell, [], {
+    const proc = pty.spawn(shell, ['-l'], {
       name: 'xterm-256color',
       cols: 80,
       rows: 24,

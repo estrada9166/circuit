@@ -233,6 +233,13 @@ app.whenReady().then(() => {
     return store.updateProject(name, fields as Record<string, unknown>);
   });
 
+  ipcMain.handle(IPC.STORE_REORDER, (_, names: unknown) => {
+    if (!Array.isArray(names) || !names.every(n => typeof n === 'string')) {
+      throw new Error('Names must be an array of strings');
+    }
+    store.reorderProjects(names as string[]);
+  });
+
   // ---- Project handlers ----
 
   ipcMain.handle(IPC.PROJECT_OPEN, (_, projectName: unknown) => {

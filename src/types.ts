@@ -64,6 +64,7 @@ export const IPC = {
   STORE_ADD: 'store:add',
   STORE_REMOVE: 'store:remove',
   STORE_UPDATE: 'store:update',
+  STORE_REORDER: 'store:reorder',
 
   // Project
   PROJECT_OPEN: 'project:open',
@@ -100,6 +101,7 @@ export interface PreloadApi {
   addProject(project: { name: string; path: string; terminals?: TerminalConfig[] }): Promise<Project>;
   removeProject(name: string): Promise<void>;
   updateProject(name: string, fields: UpdatableProjectFields): Promise<Project>;
+  reorderProjects(names: string[]): Promise<void>;
   openProject(projectName: string): Promise<string[]>;
   closeProject(projectName: string): Promise<void>;
   openSingleTerminal(projectName: string, terminalName: string): Promise<PtyCreatedEvent | null>;

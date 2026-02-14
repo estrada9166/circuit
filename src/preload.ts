@@ -10,6 +10,7 @@ const api: PreloadApi = {
   addProject: (project) => ipcRenderer.invoke(IPC.STORE_ADD, project),
   removeProject: (name) => ipcRenderer.invoke(IPC.STORE_REMOVE, name),
   updateProject: (name, fields) => ipcRenderer.invoke(IPC.STORE_UPDATE, name, fields),
+  reorderProjects: (names) => ipcRenderer.invoke(IPC.STORE_REORDER, names),
   openProject: (projectName) => ipcRenderer.invoke(IPC.PROJECT_OPEN, projectName),
   closeProject: (projectName) => ipcRenderer.invoke(IPC.PROJECT_CLOSE, projectName),
   openSingleTerminal: (projectName: string, terminalName: string) => ipcRenderer.invoke(IPC.PROJECT_OPEN_SINGLE_TERMINAL, projectName, terminalName),

@@ -104,6 +104,24 @@ export class Store {
     this._save();
   }
 
+  reorderProjects(names: string[]): void {
+    const byName = new Map(this.projects.map(p => [p.name, p]));
+    const reordered: Project[] = [];
+    for (const name of names) {
+      const p = byName.get(name);
+      if (p) {
+        reordered.push(p);
+        byName.delete(name);
+      }
+    }
+    // Append any projects not in the names list (safety net)
+    for (const p of byName.values()) {
+      reordered.push(p);
+    }
+    this.projects = reordered;
+    this._save();
+  }
+
   updateProject(name: string, fields: UpdatableProjectFields): Project {
     if (!name || typeof name !== 'string') {
       throw new Error('Name is required');

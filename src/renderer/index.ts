@@ -62,6 +62,11 @@ async function init(): Promise<void> {
       setProjects(await window.api.loadProjects());
       renderSidebar();
     },
+    reorderProjects: async (names) => {
+      await window.api.reorderProjects(names);
+      setProjects(await window.api.loadProjects());
+      renderSidebar();
+    },
   });
   setDialogCallbacks(renderSidebar);
 

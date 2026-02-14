@@ -16,6 +16,8 @@ type ActivateGroupFn = (groupId: string) => void;
 type FocusSessionFn = (sessionId: string) => void;
 type RenderFn = () => void;
 
+type ReorderProjectsFn = (names: string[]) => Promise<void>;
+
 let callbacks: {
   openProject: OpenProjectFn;
   openGitPanel: OpenGitPanelFn;
@@ -30,6 +32,7 @@ let callbacks: {
   render: RenderFn;
   refreshRunningTerminals: (projectName: string) => Promise<void>;
   updateProject: (projectName: string, fields: { terminals: { name: string; commands: string[] }[] }) => Promise<void>;
+  reorderProjects: ReorderProjectsFn;
 } | null = null;
 
 export function setSidebarCallbacks(cbs: typeof callbacks): void {
@@ -40,6 +43,16 @@ export function setSidebarCallbacks(cbs: typeof callbacks): void {
 
 let list: HTMLElement;
 let emptyState: HTMLElement;
+
+// ---- Drag state ----
+
+let draggedProjectName: string | null = null;
+
+function clearDropIndicators(): void {
+  list.querySelectorAll('.drag-over-above, .drag-over-below').forEach(el => {
+    el.classList.remove('drag-over-above', 'drag-over-below');
+  });
+}
 
 // ---- SVG icons ----
 
@@ -112,6 +125,8 @@ export function renderSidebar(): void {
     li.className = 'project-item';
     li.setAttribute('role', 'option');
     li.setAttribute('tabindex', '0');
+    li.setAttribute('draggable', 'true');
+    li.dataset.projectName = project.name;
 
     const isActive = activeProjects.includes(project.name);
     if (isActive) li.classList.add('active');
@@ -286,6 +301,57 @@ export function renderSidebar(): void {
     li.querySelector('.btn-remove')!.addEventListener('click', (e) => {
       e.stopPropagation();
       if (callbacks) callbacks.showRemoveDialog(project);
+    });
+
+    // ---- Drag-and-drop handlers ----
+
+    li.addEventListener('dragstart', (e) => {
+      draggedProjectName = project.name;
+      li.classList.add('dragging');
+      e.dataTransfer!.effectAllowed = 'move';
+    });
+
+    li.addEventListener('dragend', () => {
+      draggedProjectName = null;
+      li.classList.remove('dragging');
+      clearDropIndicators();
+    });
+
+    li.addEventListener('dragover', (e) => {
+      e.preventDefault();
+      if (!draggedProjectName || draggedProjectName === project.name) return;
+      e.dataTransfer!.dropEffect = 'move';
+      clearDropIndicators();
+      const rect = li.getBoundingClientRect();
+      const midY = rect.top + rect.height / 2;
+      if (e.clientY < midY) {
+        li.classList.add('drag-over-above');
+      } else {
+        li.classList.add('drag-over-below');
+      }
+    });
+
+    li.addEventListener('dragleave', () => {
+      li.classList.remove('drag-over-above', 'drag-over-below');
+    });
+
+    li.addEventListener('drop', (e) => {
+      e.preventDefault();
+      if (!draggedProjectName || draggedProjectName === project.name || !callbacks) return;
+
+      const rect = li.getBoundingClientRect();
+      const midY = rect.top + rect.height / 2;
+      const insertBefore = e.clientY < midY;
+
+      // Build new order
+      const names = projects.filter(p => p.name !== draggedProjectName).map(p => p.name);
+      const targetIdx = names.indexOf(project.name);
+      const insertIdx = insertBefore ? targetIdx : targetIdx + 1;
+      names.splice(insertIdx, 0, draggedProjectName);
+
+      draggedProjectName = null;
+      clearDropIndicators();
+      callbacks.reorderProjects(names);
     });
 
     list.appendChild(li);

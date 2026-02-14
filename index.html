@@ -105,6 +105,18 @@
       position: relative;
     }
 
+    .project-item.dragging {
+      opacity: 0.4;
+    }
+
+    .project-item.drag-over-above {
+      box-shadow: 0 -2px 0 0 var(--accent);
+    }
+
+    .project-item.drag-over-below {
+      box-shadow: 0 2px 0 0 var(--accent);
+    }
+
     .project-row {
       display: flex;
       align-items: center;
