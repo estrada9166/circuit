@@ -39,7 +39,32 @@ function loadWindowState(): WindowState | null {
   }
 }
 
+let saveWindowStateTimer: ReturnType<typeof setTimeout> | null = null;
+
 function saveWindowState(): void {
+  if (saveWindowStateTimer) return;
+  saveWindowStateTimer = setTimeout(() => {
+    saveWindowStateTimer = null;
+    if (!mainWindow) return;
+    const bounds = mainWindow.getBounds();
+    const state: WindowState = {
+      x: bounds.x,
+      y: bounds.y,
+      width: bounds.width,
+      height: bounds.height,
+      isMaximized: mainWindow.isMaximized(),
+    };
+    try {
+      fs.writeFileSync(WINDOW_STATE_FILE, JSON.stringify(state), { mode: 0o600 });
+    } catch { /* ignore */ }
+  }, 500);
+}
+
+function saveWindowStateNow(): void {
+  if (saveWindowStateTimer) {
+    clearTimeout(saveWindowStateTimer);
+    saveWindowStateTimer = null;
+  }
   if (!mainWindow) return;
   const bounds = mainWindow.getBounds();
   const state: WindowState = {
@@ -178,10 +203,10 @@ function createWindow(): void {
     mainWindow.maximize();
   }
 
-  // Save window state on changes
+  // Save window state on changes (debounced for resize/move, immediate on close)
   mainWindow.on('resize', saveWindowState);
   mainWindow.on('move', saveWindowState);
-  mainWindow.on('close', saveWindowState);
+  mainWindow.on('close', saveWindowStateNow);
 
   // ---- Security: restrict navigation and new windows ----
   mainWindow.webContents.on('will-navigate', (event) => {

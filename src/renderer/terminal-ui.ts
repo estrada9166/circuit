@@ -11,6 +11,7 @@ import {
   projects,
   setActiveGroupId,
   setFocusedSessionId,
+  setActiveProjects,
   nextGroupId,
   TerminalSession,
   TabGroup,
@@ -56,6 +57,7 @@ const TERMINAL_OPTIONS = {
   fontFamily: '"SF Mono", Menlo, monospace',
   cursorBlink: true,
   allowProposedApi: true,
+  scrollback: 5000,
 };
 
 function hexToRgba(hex: string, alpha: number): string {
@@ -135,14 +137,17 @@ export function makeTerminalSession(
 
   terminal.open(wrapper);
 
-  // Intercept Shift+Enter so it sends a newline (\n) instead of carriage return (\r)
+  // Intercept Shift+Enter so it inserts a literal newline in the shell's editing buffer.
+  // Sends Ctrl+V (quoted-insert) + LF so bash/zsh insert a newline instead of executing.
   terminal.attachCustomKeyEventHandler((event: KeyboardEvent) => {
-    if (event.key === 'Enter' && event.shiftKey && event.type === 'keydown') {
-      window.api.terminalInput(id, '\n');
-      return false; // prevent xterm from processing the key
+    if (event.key === 'Enter' && event.shiftKey) {
+      if (event.type === 'keydown') {
+        window.api.terminalInput(id, '\x16\x0a');
+      }
+      return false; // prevent xterm from processing any Shift+Enter event
     }
     // Let Cmd/Ctrl shortcuts bubble up to the document handler
-    if ((event.metaKey || event.ctrlKey) && ['n', 't', 'p', 'd'].includes(event.key)) {
+    if ((event.metaKey || event.ctrlKey) && ['n', 't', 'p', 'd', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(event.key)) {
       return false;
     }
     return true;
@@ -209,8 +214,14 @@ export function createTabGroup(session: TerminalSession): TabGroup {
   return group;
 }
 
+let pendingFitGroupId: string | null = null;
+
 export function fitGroupSessions(group: TabGroup): void {
+  // Deduplicate: only one RAF per group at a time
+  if (pendingFitGroupId === group.id) return;
+  pendingFitGroupId = group.id;
   requestAnimationFrame(() => {
+    pendingFitGroupId = null;
     for (const sid of group.sessionIds) {
       const s = sessions.get(sid);
       if (s) {
@@ -281,12 +292,14 @@ export function closeGroup(groupId: string): void {
       session.terminal.dispose();
       sessions.delete(sid);
     }
+    // Clean up stale notification state
+    notifiedSessionIds.delete(sid);
   }
 
   group.element.remove();
   tabGroups.delete(groupId);
 
-  // Switch to next available group
+  // Switch to next available group (activateGroup already calls renderTerminalTabs)
   if (activeGroupId === groupId) {
     const remaining = [...tabGroups.keys()];
     const nextId = remaining.length > 0 ? remaining[remaining.length - 1] : null;
@@ -295,10 +308,11 @@ export function closeGroup(groupId: string): void {
       activateGroup(nextId);
     } else {
       setFocusedSessionId(null);
+      renderTerminalTabs();
     }
+  } else {
+    renderTerminalTabs();
   }
-
-  renderTerminalTabs();
 
   if (tabGroups.size === 0) {
     terminalEmptyState.hidden = false;
@@ -314,6 +328,9 @@ export function removeSession(id: string): void {
   // Dispose tracked event listeners
   for (const d of session.disposables) d.dispose();
   session.terminal.dispose();
+
+  // Clean up stale notification state
+  notifiedSessionIds.delete(id);
 
   const group = tabGroups.get(session.groupId);
   if (group) {
@@ -406,6 +423,25 @@ export async function splitSession(sessionId: string): Promise<void> {
   updateActiveProjects();
 }
 
+// ---- Tab drag-and-drop state ----
+
+let draggedGroupId: string | null = null;
+
+function clearTabDropIndicators(): void {
+  terminalTabs.querySelectorAll('.drag-over-left, .drag-over-right').forEach(el => {
+    el.classList.remove('drag-over-left', 'drag-over-right');
+  });
+}
+
+function reorderTabGroups(orderedIds: string[]): void {
+  const entries = new Map(tabGroups);
+  tabGroups.clear();
+  for (const id of orderedIds) {
+    const group = entries.get(id);
+    if (group) tabGroups.set(id, group);
+  }
+}
+
 // ---- Tab bar rendering ----
 
 export function renderTerminalTabs(): void {
@@ -428,6 +464,7 @@ export function renderTerminalTabs(): void {
     tab.setAttribute('role', 'tab');
     tab.setAttribute('aria-selected', String(isActive));
     tab.setAttribute('tabindex', isActive ? '0' : '-1');
+    tab.setAttribute('draggable', 'true');
 
     if (group.color) {
       tab.style.borderLeft = `3px solid ${group.color}`;
@@ -478,21 +515,70 @@ export function renderTerminalTabs(): void {
       }
     });
 
+    // ---- Tab drag-and-drop handlers ----
+
+    tab.addEventListener('dragstart', (e) => {
+      draggedGroupId = groupId;
+      tab.classList.add('dragging');
+      e.dataTransfer!.effectAllowed = 'move';
+    });
+
+    tab.addEventListener('dragend', () => {
+      draggedGroupId = null;
+      tab.classList.remove('dragging');
+      clearTabDropIndicators();
+    });
+
+    tab.addEventListener('dragover', (e) => {
+      e.preventDefault();
+      if (!draggedGroupId || draggedGroupId === groupId) return;
+      e.dataTransfer!.dropEffect = 'move';
+      clearTabDropIndicators();
+      const rect = tab.getBoundingClientRect();
+      const midX = rect.left + rect.width / 2;
+      if (e.clientX < midX) {
+        tab.classList.add('drag-over-left');
+      } else {
+        tab.classList.add('drag-over-right');
+      }
+    });
+
+    tab.addEventListener('dragleave', () => {
+      tab.classList.remove('drag-over-left', 'drag-over-right');
+    });
+
+    tab.addEventListener('drop', (e) => {
+      e.preventDefault();
+      if (!draggedGroupId || draggedGroupId === groupId) return;
+
+      const rect = tab.getBoundingClientRect();
+      const midX = rect.left + rect.width / 2;
+      const insertBefore = e.clientX < midX;
+
+      const ids = [...tabGroups.keys()].filter(id => id !== draggedGroupId);
+      const targetIdx = ids.indexOf(groupId);
+      const insertIdx = insertBefore ? targetIdx : targetIdx + 1;
+      ids.splice(insertIdx, 0, draggedGroupId);
+
+      draggedGroupId = null;
+      clearTabDropIndicators();
+      reorderTabGroups(ids);
+      renderTerminalTabs();
+    });
+
     terminalTabs.appendChild(tab);
   }
 }
 
 // ---- Active project tracking ----
 
-export async function updateActiveProjects(): Promise<void> {
+export function updateActiveProjects(): void {
   // Derive active projects locally from the sessions Map instead of IPC round-trip
   const projectNames = new Set<string>();
   for (const [, session] of sessions) {
     projectNames.add(session.projectName);
   }
 
-  // Import the setter indirectly (activeProjects is managed via state)
-  const { setActiveProjects } = await import('./state');
   setActiveProjects([...projectNames]);
 
   // Trigger sidebar re-render
