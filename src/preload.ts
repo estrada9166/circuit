@@ -61,6 +61,13 @@ const api: PreloadApi = {
     return ipcRenderer.invoke(IPC.GIT_REPO_DIFF, repoPath);
   },
 
+  // Command palette
+  onOpenCommandPalette: (callback: () => void) => {
+    const handler = () => callback();
+    ipcRenderer.on('open-command-palette', handler);
+    return () => { ipcRenderer.removeListener('open-command-palette', handler); };
+  },
+
   // Platform
   getHomedir: () => homedir,
   openExternal: (url: string) => {

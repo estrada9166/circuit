@@ -127,6 +127,9 @@ export interface PreloadApi {
   getFileDiff(repoPath: string, filePath: string): Promise<string>;
   getRepoDiff(repoPath: string): Promise<string>;
 
+  // Command palette
+  onOpenCommandPalette(callback: () => void): () => void;
+
   // Platform
   getHomedir(): string;
   openExternal(url: string): void;
