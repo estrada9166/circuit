@@ -76,6 +76,7 @@ export const IPC = {
   PROJECT_RUNNING_TERMINALS: 'project:runningTerminals',
 
   // Terminal
+  TERMINAL_OPEN_STANDALONE: 'terminal:openStandalone',
   TERMINAL_INPUT: 'terminal:input',
   TERMINAL_RESIZE: 'terminal:resize',
   TERMINAL_CLOSE: 'terminal:close',
@@ -93,6 +94,7 @@ export const IPC = {
 
   // Platform
   GET_HOMEDIR: 'platform:homedir',
+  OPEN_EXTERNAL: 'platform:openExternal',
 } as const;
 
 /** The shape of window.api exposed by the preload script */
@@ -110,6 +112,7 @@ export interface PreloadApi {
   getActiveProjects(): Promise<string[]>;
   getRunningTerminals(projectName: string): Promise<string[]>;
   selectDirectory(): Promise<string | null>;
+  openStandaloneTerminal(): Promise<PtyCreatedEvent>;
 
   // Terminal IPC
   terminalInput(ptyId: string, data: string): void;
@@ -126,4 +129,5 @@ export interface PreloadApi {
 
   // Platform
   getHomedir(): string;
+  openExternal(url: string): void;
 }

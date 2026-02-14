@@ -91,7 +91,11 @@ export function makeTerminalSession(
 
   const fitAddon = new FitAddon();
   terminal.loadAddon(fitAddon);
-  terminal.loadAddon(new WebLinksAddon());
+  terminal.loadAddon(new WebLinksAddon((event, uri) => {
+    if (event.metaKey) {
+      window.api.openExternal(uri);
+    }
+  }));
 
   const wrapper = document.createElement('div');
   wrapper.className = 'split-terminal';
@@ -122,6 +126,15 @@ export function makeTerminalSession(
   wrapper.appendChild(closeBtn);
 
   terminal.open(wrapper);
+
+  // Intercept Shift+Enter so it sends a newline (\n) instead of carriage return (\r)
+  terminal.attachCustomKeyEventHandler((event: KeyboardEvent) => {
+    if (event.key === 'Enter' && event.shiftKey && event.type === 'keydown') {
+      window.api.terminalInput(id, '\n');
+      return false; // prevent xterm from processing the key
+    }
+    return true;
+  });
 
   // Track disposables for cleanup
   const disposables: { dispose(): void }[] = [];

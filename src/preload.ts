@@ -19,6 +19,7 @@ const api: PreloadApi = {
   getActiveProjects: () => ipcRenderer.invoke(IPC.PROJECT_GET_ACTIVE),
   getRunningTerminals: (projectName: string) => ipcRenderer.invoke(IPC.PROJECT_RUNNING_TERMINALS, projectName),
   selectDirectory: () => ipcRenderer.invoke(IPC.DIALOG_SELECT_DIR),
+  openStandaloneTerminal: () => ipcRenderer.invoke(IPC.TERMINAL_OPEN_STANDALONE),
 
   // Terminal IPC
   terminalInput: (ptyId: string, data: string) => {
@@ -62,6 +63,9 @@ const api: PreloadApi = {
 
   // Platform
   getHomedir: () => homedir,
+  openExternal: (url: string) => {
+    ipcRenderer.send(IPC.OPEN_EXTERNAL, url);
+  },
 };
 
 contextBridge.exposeInMainWorld('api', api);

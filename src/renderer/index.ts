@@ -125,12 +125,22 @@ async function init(): Promise<void> {
     removeSession(ptyId);
   }));
 
+  // New Terminal button
+  document.getElementById('btn-new-terminal')?.addEventListener('click', () => {
+    window.api.openStandaloneTerminal();
+  });
+
   // Keyboard shortcuts
   document.addEventListener('keydown', (e) => {
     // Cmd/Ctrl+N: open add project dialog
     if ((e.metaKey || e.ctrlKey) && e.key === 'n') {
       e.preventDefault();
       document.getElementById('btn-add')?.click();
+    }
+    // Cmd/Ctrl+T: open standalone terminal
+    if ((e.metaKey || e.ctrlKey) && e.key === 't') {
+      e.preventDefault();
+      window.api.openStandaloneTerminal();
     }
     // Cmd/Ctrl+D: split the focused terminal
     if ((e.metaKey || e.ctrlKey) && e.key === 'd') {

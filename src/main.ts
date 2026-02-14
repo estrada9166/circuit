@@ -210,6 +210,12 @@ app.whenReady().then(() => {
     event.returnValue = os.homedir();
   });
 
+  ipcMain.on(IPC.OPEN_EXTERNAL, (_, url: string) => {
+    if (typeof url === 'string' && (url.startsWith('https://') || url.startsWith('http://'))) {
+      shell.openExternal(url);
+    }
+  });
+
   // ---- Store handlers ----
   ipcMain.handle(IPC.STORE_LOAD, () => store.projects);
 
@@ -328,6 +334,13 @@ app.whenReady().then(() => {
   ipcMain.handle(IPC.PROJECT_GET_ACTIVE, () => ptyManager.getActiveProjects());
 
   // ---- Terminal IPC ----
+
+  ipcMain.handle(IPC.TERMINAL_OPEN_STANDALONE, () => {
+    const id = ptyManager.create('Terminal', 'shell', os.homedir(), []);
+    const event = { id, projectName: 'Terminal', terminalName: 'shell' };
+    mainWindow?.webContents.send(IPC.TERMINAL_CREATED, event);
+    return event;
+  });
 
   ipcMain.on(IPC.TERMINAL_INPUT, (_, ptyId: string, data: string) => {
     if (typeof ptyId !== 'string' || typeof data !== 'string') return;
