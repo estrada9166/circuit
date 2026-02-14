@@ -120,6 +120,26 @@ export function renderSidebar(): void {
   list.innerHTML = '';
   emptyState.hidden = projects.length > 0;
 
+  // Prune stale state for removed projects
+  const projectNames = new Set(projects.map(p => p.name));
+  for (const name of expandedProjectNames) {
+    if (!projectNames.has(name)) expandedProjectNames.delete(name);
+  }
+  for (const name of runningTerminalNames.keys()) {
+    if (!projectNames.has(name)) runningTerminalNames.delete(name);
+  }
+
+  // Pre-build session-by-project index to avoid O(n*m) per-project filtering
+  const sessionsByProject = new Map<string, typeof sessions extends Map<string, infer V> ? V[] : never>();
+  for (const [, session] of sessions) {
+    let arr = sessionsByProject.get(session.projectName);
+    if (!arr) {
+      arr = [];
+      sessionsByProject.set(session.projectName, arr);
+    }
+    arr.push(session);
+  }
+
   projects.forEach(project => {
     const li = document.createElement('li');
     li.className = 'project-item';
@@ -143,7 +163,7 @@ export function renderSidebar(): void {
     const running = runningTerminalNames.get(project.name) || [];
 
     // Check if any session for this project has a notification
-    const projectSessions = [...sessions.values()].filter(s => s.projectName === project.name);
+    const projectSessions = sessionsByProject.get(project.name) || [];
     const hasProjectNotification = projectSessions.some(s => notifiedSessionIds.has(s.id));
 
     const iconStyle = project.color ? ` style="background: ${esc(project.color)}; color: #fff"` : '';
@@ -305,7 +325,7 @@ export function renderSidebar(): void {
       splitBtn.addEventListener('click', (e) => {
         e.stopPropagation();
         if (!callbacks) return;
-        const pSessions = [...sessions.values()].filter(s => s.projectName === project.name);
+        const pSessions = projectSessions;
         const target = pSessions.find(s => s.id === focusedSessionId) || pSessions[0];
         if (target) callbacks.splitSession(target.id);
       });

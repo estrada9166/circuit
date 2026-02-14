@@ -4,6 +4,8 @@ import {
   focusedSessionId,
   notifiedSessionIds,
   runningTerminalNames,
+  tabGroups,
+  projects,
   setProjects,
   setActiveProjects,
 } from './state';
@@ -136,30 +138,170 @@ async function init(): Promise<void> {
     window.api.openStandaloneTerminal();
   });
 
+  // ── Shortcut popup (shown when Cmd/Ctrl is held or button clicked) ──
+  const shortcutOverlay = document.createElement('div');
+  shortcutOverlay.className = 'shortcut-overlay';
+  shortcutOverlay.hidden = true;
+  document.body.appendChild(shortcutOverlay);
+
+  const shortcutPopup = document.createElement('div');
+  shortcutPopup.className = 'shortcut-popup';
+  shortcutPopup.hidden = true;
+  shortcutPopup.innerHTML = `
+    <div class="shortcut-popup-title">Keyboard Shortcuts</div>
+    <div class="shortcut-row"><span class="shortcut-key">\u2318 \u2191/\u2193</span><span class="shortcut-desc">Switch project</span></div>
+    <div class="shortcut-row"><span class="shortcut-key">\u2318 \u2190/\u2192</span><span class="shortcut-desc">Switch tab</span></div>
+    <div class="shortcut-row"><span class="shortcut-key">\u2318 N</span><span class="shortcut-desc">New project</span></div>
+    <div class="shortcut-row"><span class="shortcut-key">\u2318 T</span><span class="shortcut-desc">New terminal</span></div>
+    <div class="shortcut-row"><span class="shortcut-key">\u2318 P</span><span class="shortcut-desc">Command palette</span></div>
+    <div class="shortcut-row"><span class="shortcut-key">\u2318 D</span><span class="shortcut-desc">Split pane</span></div>
+  `;
+  document.body.appendChild(shortcutPopup);
+
+  let cmdHoldTimer: ReturnType<typeof setTimeout> | null = null;
+  let shortcutPinned = false; // true when opened via button click
+
+  function showShortcutPopup(): void {
+    shortcutPopup.hidden = false;
+    shortcutOverlay.hidden = shortcutPinned ? false : true;
+  }
+
+  function hideShortcutPopup(): void {
+    shortcutPopup.hidden = true;
+    shortcutOverlay.hidden = true;
+    shortcutPinned = false;
+    if (cmdHoldTimer) {
+      clearTimeout(cmdHoldTimer);
+      cmdHoldTimer = null;
+    }
+  }
+
+  // Shortcuts button in sidebar
+  document.getElementById('btn-shortcuts')?.addEventListener('click', () => {
+    if (!shortcutPopup.hidden) {
+      hideShortcutPopup();
+    } else {
+      shortcutPinned = true;
+      showShortcutPopup();
+    }
+  });
+
+  // Click overlay to dismiss
+  shortcutOverlay.addEventListener('click', hideShortcutPopup);
+
+  // Escape to dismiss when pinned
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && shortcutPinned) {
+      hideShortcutPopup();
+    }
+  });
+
   // Keyboard shortcuts
   document.addEventListener('keydown', (e) => {
+    const mod = e.metaKey || e.ctrlKey;
+
+    // Cmd/Ctrl held alone — start timer to show popup (only if not pinned)
+    if ((e.key === 'Meta' || e.key === 'Control') && !e.shiftKey && !e.altKey) {
+      if (!cmdHoldTimer && !shortcutPinned) {
+        cmdHoldTimer = setTimeout(showShortcutPopup, 400);
+      }
+      return;
+    }
+
+    // Any other key while Cmd held — cancel/hide the Cmd-hold popup (not pinned)
+    if (!shortcutPinned) {
+      hideShortcutPopup();
+    } else if (cmdHoldTimer) {
+      clearTimeout(cmdHoldTimer);
+      cmdHoldTimer = null;
+    }
+
+    if (!mod) return;
+
     // Cmd/Ctrl+N: open add project dialog
-    if ((e.metaKey || e.ctrlKey) && e.key === 'n') {
+    if (e.key === 'n') {
       e.preventDefault();
       document.getElementById('btn-add')?.click();
     }
     // Cmd/Ctrl+T: open standalone terminal
-    if ((e.metaKey || e.ctrlKey) && e.key === 't') {
+    if (e.key === 't') {
       e.preventDefault();
       window.api.openStandaloneTerminal();
     }
     // Cmd/Ctrl+P: open command palette
-    if ((e.metaKey || e.ctrlKey) && e.key === 'p') {
+    if (e.key === 'p') {
       e.preventDefault();
       openCommandPalette();
     }
     // Cmd/Ctrl+D: split the focused terminal
-    if ((e.metaKey || e.ctrlKey) && e.key === 'd') {
+    if (e.key === 'd') {
       e.preventDefault();
       const focused = focusedSessionId;
       if (focused) splitSession(focused);
     }
+    // Cmd/Ctrl+Left/Right: cycle tabs
+    if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
+      e.preventDefault();
+      const ids = [...tabGroups.keys()];
+      if (ids.length === 0) return;
+      const curIdx = activeGroupId ? ids.indexOf(activeGroupId) : -1;
+      let nextIdx: number;
+      if (e.key === 'ArrowLeft') {
+        nextIdx = curIdx <= 0 ? ids.length - 1 : curIdx - 1;
+      } else {
+        nextIdx = curIdx >= ids.length - 1 ? 0 : curIdx + 1;
+      }
+      activateGroup(ids[nextIdx]);
+    }
+    // Cmd/Ctrl+Up/Down: cycle projects
+    if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
+      e.preventDefault();
+      if (projects.length === 0) return;
+
+      // Determine current project index
+      let curIdx = -1;
+      if (activeGroupId) {
+        const activeGroup = tabGroups.get(activeGroupId);
+        if (activeGroup) {
+          curIdx = projects.findIndex(p => p.name === activeGroup.projectName);
+        }
+      }
+
+      let nextIdx: number;
+      if (e.key === 'ArrowUp') {
+        nextIdx = curIdx <= 0 ? projects.length - 1 : curIdx - 1;
+      } else {
+        nextIdx = curIdx >= projects.length - 1 ? 0 : curIdx + 1;
+      }
+
+      const target = projects[nextIdx];
+
+      // If the project has an open tab group, switch to it
+      const existingGroup = [...tabGroups.values()].find(g => g.projectName === target.name);
+      if (existingGroup) {
+        activateGroup(existingGroup.id);
+      } else {
+        // Open a new terminal for this project
+        window.api.newTerminal(target.name);
+      }
+
+      // Highlight project in sidebar
+      const li = document.querySelector(`[data-project-name="${CSS.escape(target.name)}"]`) as HTMLElement | null;
+      if (li) {
+        li.focus();
+        li.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+      }
+    }
   });
+
+  document.addEventListener('keyup', (e) => {
+    if ((e.key === 'Meta' || e.key === 'Control') && !shortcutPinned) {
+      hideShortcutPopup();
+    }
+  });
+
+  // Hide popup if window loses focus (e.g. Cmd+Tab to another app)
+  window.addEventListener('blur', hideShortcutPopup);
 }
 
 init().catch((err) => {
