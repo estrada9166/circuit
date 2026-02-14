@@ -133,6 +133,10 @@ export function makeTerminalSession(
       window.api.terminalInput(id, '\n');
       return false; // prevent xterm from processing the key
     }
+    // Let Cmd/Ctrl shortcuts bubble up to the document handler
+    if ((event.metaKey || event.ctrlKey) && ['n', 't', 'p', 'd'].includes(event.key)) {
+      return false;
+    }
     return true;
   });
 

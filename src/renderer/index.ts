@@ -24,6 +24,7 @@ import {
 } from './terminal-ui';
 import { initGitPanel, openGitPanel, closeGitPanel, renderGitTab, setTerminalCallbacks } from './git-panel';
 import { initDialogs, showEditDialog, showRemoveDialog, setDialogCallbacks } from './dialogs';
+import { initCommandPalette, openCommandPalette } from './command-palette';
 import type { PtyCreatedEvent } from '../types';
 
 async function init(): Promise<void> {
@@ -32,6 +33,7 @@ async function init(): Promise<void> {
   initTerminalUI();
   initGitPanel();
   initDialogs();
+  initCommandPalette(activateGroup);
 
   // Wire up cross-module callbacks to avoid circular dependencies
   setRenderCallbacks(renderSidebar, renderGitTab);
@@ -125,6 +127,10 @@ async function init(): Promise<void> {
     removeSession(ptyId);
   }));
 
+  cleanups.push(window.api.onOpenCommandPalette(() => {
+    openCommandPalette();
+  }));
+
   // New Terminal button
   document.getElementById('btn-new-terminal')?.addEventListener('click', () => {
     window.api.openStandaloneTerminal();
@@ -141,6 +147,11 @@ async function init(): Promise<void> {
     if ((e.metaKey || e.ctrlKey) && e.key === 't') {
       e.preventDefault();
       window.api.openStandaloneTerminal();
+    }
+    // Cmd/Ctrl+P: open command palette
+    if ((e.metaKey || e.ctrlKey) && e.key === 'p') {
+      e.preventDefault();
+      openCommandPalette();
     }
     // Cmd/Ctrl+D: split the focused terminal
     if ((e.metaKey || e.ctrlKey) && e.key === 'd') {

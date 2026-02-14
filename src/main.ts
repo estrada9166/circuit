@@ -123,6 +123,19 @@ function createMenu(): void {
       ],
     },
     {
+      label: 'Terminal',
+      submenu: [
+        {
+          label: 'Command Palette',
+          accelerator: 'CmdOrCtrl+P',
+          click: () => {
+            const win = BrowserWindow.getFocusedWindow();
+            if (win) win.webContents.send('open-command-palette');
+          },
+        },
+      ],
+    },
+    {
       label: 'Window',
       submenu: [
         { role: 'minimize' },
