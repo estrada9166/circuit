@@ -26,16 +26,68 @@ export function setDialogCallbacks(renderSidebar: () => void): void {
 let addDialog: HTMLDialogElement;
 let addName: HTMLInputElement;
 let addPath: HTMLInputElement;
+let addColorSwatches: HTMLElement;
 let addError: HTMLElement;
 let addTerminalsContainer: HTMLElement;
 
 let editDialog: HTMLDialogElement;
 let editProjectName: HTMLElement;
+let editColorSwatches: HTMLElement;
 let editError: HTMLElement;
 let editTerminalsContainer: HTMLElement;
 
+// Track project color state for add/edit dialogs
+let addProjectColor: string | undefined;
+let editProjectColor: string | undefined;
+
 let removeDialog: HTMLDialogElement;
 let removeProjectNameEl: HTMLElement;
+
+// ---- Color preset swatches ----
+
+const PRESET_COLORS = [
+  '#ff453a', '#ff9f0a', '#ffd60a', '#32d74b',
+  '#0a84ff', '#5e5ce6', '#bf5af2', '#ff375f',
+];
+
+function renderColorSwatches(
+  container: HTMLElement,
+  selectedColor: string | undefined,
+  onSelect: (color: string | undefined) => void,
+  small?: boolean,
+): void {
+  container.innerHTML = '';
+  if (small) container.classList.add('color-swatches-sm');
+
+  const colors = [...PRESET_COLORS];
+  if (selectedColor && !colors.includes(selectedColor)) {
+    colors.push(selectedColor);
+  }
+
+  const noneSwatch = document.createElement('button');
+  noneSwatch.type = 'button';
+  noneSwatch.className = 'color-swatch-none' + (!selectedColor ? ' selected' : '');
+  noneSwatch.title = 'No color';
+  noneSwatch.addEventListener('click', () => {
+    onSelect(undefined);
+    renderColorSwatches(container, undefined, onSelect, small);
+  });
+  container.appendChild(noneSwatch);
+
+  for (const color of colors) {
+    const swatch = document.createElement('button');
+    swatch.type = 'button';
+    swatch.className = 'color-swatch' + (selectedColor === color ? ' selected' : '');
+    swatch.style.background = color;
+    swatch.title = color;
+    swatch.addEventListener('click', () => {
+      const next = selectedColor === color ? undefined : color;
+      onSelect(next);
+      renderColorSwatches(container, next, onSelect, small);
+    });
+    container.appendChild(swatch);
+  }
+}
 
 // ---- Terminal config UI helpers ----
 
@@ -55,14 +107,19 @@ function renderTerminalEntries(
                placeholder="Terminal name (e.g. server)">
         <button type="button" class="btn danger btn-remove-terminal">&times;</button>
       </div>
+      <div class="color-swatches color-swatches-sm terminal-color-swatches"></div>
       <textarea class="terminal-commands-input" rows="2"
                 placeholder="Commands (one per line)">${esc(terminal.commands.join('\n'))}</textarea>
     `;
 
+    const swatchContainer = div.querySelector('.terminal-color-swatches') as HTMLElement;
     const nameInput = div.querySelector('.terminal-name-input') as HTMLInputElement;
     const cmdsInput = div.querySelector('.terminal-commands-input') as HTMLTextAreaElement;
     const removeBtn = div.querySelector('.btn-remove-terminal') as HTMLButtonElement;
 
+    renderColorSwatches(swatchContainer, terminal.color, (c) => {
+      terminals[index].color = c;
+    }, true);
     nameInput.addEventListener('input', () => {
       terminals[index].name = nameInput.value.trim();
     });
@@ -122,11 +179,13 @@ export function initDialogs(): void {
   addDialog = document.getElementById('add-dialog') as HTMLDialogElement;
   addName = document.getElementById('add-name') as HTMLInputElement;
   addPath = document.getElementById('add-path') as HTMLInputElement;
+  addColorSwatches = document.getElementById('add-color-swatches')!;
   addError = document.getElementById('add-error')!;
   addTerminalsContainer = document.getElementById('add-terminals-container')!;
 
   editDialog = document.getElementById('edit-dialog') as HTMLDialogElement;
   editProjectName = document.getElementById('edit-project-name')!;
+  editColorSwatches = document.getElementById('edit-color-swatches')!;
   editError = document.getElementById('edit-error')!;
   editTerminalsContainer = document.getElementById('edit-terminals-container')!;
 
@@ -151,6 +210,8 @@ export function initDialogs(): void {
   document.getElementById('btn-add')!.addEventListener('click', () => {
     addName.value = '';
     addPath.value = '';
+    addProjectColor = undefined;
+    renderColorSwatches(addColorSwatches, undefined, (c) => { addProjectColor = c; });
     addError.textContent = '';
     setAddTerminals([{ name: '', commands: [] }]);
     rerenderAddTerminals();
@@ -185,7 +246,7 @@ export function initDialogs(): void {
     }
 
     try {
-      await window.api.addProject({ name, path: projPath, terminals });
+      await window.api.addProject({ name, path: projPath, terminals, color: addProjectColor });
       await reloadAndRender();
       addDialog.close();
     } catch (err: unknown) {
@@ -214,7 +275,7 @@ export function initDialogs(): void {
     }
 
     try {
-      await window.api.updateProject(editingProject.name, { terminals });
+      await window.api.updateProject(editingProject.name, { terminals, color: editProjectColor });
       await reloadAndRender();
       editDialog.close();
     } catch (err: unknown) {
@@ -247,7 +308,12 @@ export function initDialogs(): void {
 export function showEditDialog(project: Project): void {
   setEditingProject(project);
   editProjectName.textContent = project.name;
-  setEditTerminals(project.terminals.map(t => ({ name: t.name, commands: [...t.commands] })));
+  setEditTerminals(project.terminals.map(t => ({ name: t.name, commands: [...t.commands], color: t.color })));
+
+  // Initialize project color swatches
+  editProjectColor = project.color;
+  renderColorSwatches(editColorSwatches, project.color, (c) => { editProjectColor = c; });
+
   editError.textContent = '';
   rerenderEditTerminals();
   editDialog.showModal();

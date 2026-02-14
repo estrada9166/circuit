@@ -9,7 +9,7 @@ type OpenGitPanelFn = (project: Project) => void;
 type SplitSessionFn = (sessionId: string) => void;
 type ShowEditDialogFn = (project: Project) => void;
 type ShowRemoveDialogFn = (project: Project) => void;
-type OpenSingleTerminalFn = (projectName: string, terminalName: string) => void;
+type OpenSingleTerminalFn = (projectName: string, terminalName: string, prefill?: boolean) => void;
 type NewTerminalFn = (projectName: string) => void;
 type CloseGitPanelFn = () => void;
 type ActivateGroupFn = (groupId: string) => void;
@@ -31,7 +31,7 @@ let callbacks: {
   focusSession: FocusSessionFn;
   render: RenderFn;
   refreshRunningTerminals: (projectName: string) => Promise<void>;
-  updateProject: (projectName: string, fields: { terminals: { name: string; commands: string[] }[] }) => Promise<void>;
+  updateProject: (projectName: string, fields: { terminals: { name: string; commands: string[]; color?: string }[] }) => Promise<void>;
   reorderProjects: ReorderProjectsFn;
 } | null = null;
 
@@ -146,10 +146,12 @@ export function renderSidebar(): void {
     const projectSessions = [...sessions.values()].filter(s => s.projectName === project.name);
     const hasProjectNotification = projectSessions.some(s => notifiedSessionIds.has(s.id));
 
+    const iconStyle = project.color ? ` style="background: ${esc(project.color)}; color: #fff"` : '';
+
     li.innerHTML = `
       <div class="project-row">
         ${hasTerminals ? `<div class="project-chevron${isExpanded ? ' open' : ''}">${SVG_CHEVRON}</div>` : ''}
-        <div class="project-icon">${esc(initials(project.name))}</div>
+        <div class="project-icon"${iconStyle}>${esc(initials(project.name))}</div>
         <div class="project-details">
           <div class="project-name">${esc(project.name)}</div>
           <div class="project-meta">${esc(meta)}</div>
@@ -208,14 +210,14 @@ export function renderSidebar(): void {
               }
             }
           } else {
-            callbacks.openSingleTerminal(project.name, term.name);
+            callbacks.openSingleTerminal(project.name, term.name, false);
           }
         });
 
         // "+" button: always open a new tab for this terminal
         subItem.querySelector('.terminal-sub-new')!.addEventListener('click', (e) => {
           e.stopPropagation();
-          if (callbacks) callbacks.openSingleTerminal(project.name, term.name);
+          if (callbacks) callbacks.openSingleTerminal(project.name, term.name, false);
         });
 
         // Delete button: remove this terminal config from the project
@@ -245,13 +247,12 @@ export function renderSidebar(): void {
       li.appendChild(subList);
     }
 
-    // Click project row: toggle expand/collapse if has terminals, otherwise open
-    const projectRow = li.querySelector('.project-row')!;
-    projectRow.addEventListener('click', (e) => {
-      if ((e.target as HTMLElement).closest('.project-actions')) return;
-      if (!callbacks) return;
-
-      if (hasTerminals) {
+    // Chevron click: toggle expand/collapse terminal list
+    const chevronEl = li.querySelector('.project-chevron');
+    if (chevronEl) {
+      chevronEl.addEventListener('click', (e) => {
+        e.stopPropagation();
+        if (!callbacks) return;
         if (expandedProjectNames.has(project.name)) {
           expandedProjectNames.delete(project.name);
         } else {
@@ -259,16 +260,33 @@ export function renderSidebar(): void {
           callbacks.refreshRunningTerminals(project.name);
         }
         callbacks.render();
-      } else {
-        // No configured terminals — focus existing or open new
-        const existingGroup = [...tabGroups.values()].find(g => g.projectName === project.name);
-        if (existingGroup) {
-          callbacks.closeGitPanel();
-          callbacks.activateGroup(existingGroup.id);
-          return;
-        }
-        callbacks.openProject(project);
+      });
+    }
+
+    // Click project row: open a plain shell in the project path (no commands)
+    const projectRow = li.querySelector('.project-row')!;
+    projectRow.addEventListener('click', (e) => {
+      if ((e.target as HTMLElement).closest('.project-actions')) return;
+      if ((e.target as HTMLElement).closest('.project-chevron')) return;
+      if (!callbacks) return;
+
+      // Expand terminal list if project has configured terminals
+      if (hasTerminals && !expandedProjectNames.has(project.name)) {
+        expandedProjectNames.add(project.name);
+        callbacks.refreshRunningTerminals(project.name);
+        callbacks.render();
       }
+
+      // If terminals already running, focus the first one
+      const existingGroup = [...tabGroups.values()].find(g => g.projectName === project.name);
+      if (existingGroup) {
+        callbacks.closeGitPanel();
+        callbacks.activateGroup(existingGroup.id);
+        return;
+      }
+
+      // Open a plain shell in the project path (no commands)
+      callbacks.newTerminal(project.name);
     });
 
     // Action button handlers

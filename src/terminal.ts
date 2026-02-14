@@ -79,6 +79,7 @@ export class PtyManager {
     terminalName: string,
     cwd: string,
     initialCommands: string[],
+    prefill: boolean = false,
   ): string {
     const id = randomUUID();
     const shell = process.env.SHELL || (os.platform() === 'win32' ? 'powershell.exe' : '/bin/zsh');
@@ -122,7 +123,7 @@ export class PtyManager {
           setTimeout(() => {
             if (this.ptys.has(id)) {
               const cmdString = initialCommands.join(' && ');
-              proc.write(cmdString + '\r');
+              proc.write(prefill ? cmdString : cmdString + '\r');
             }
           }, 50);
         }
@@ -189,8 +190,8 @@ export class PtyManager {
   }
 
   /** Open a single named terminal for a project. */
-  openSingleTerminal(projectName: string, cwd: string, terminalName: string, commands: string[]): string {
-    return this.create(projectName, terminalName, cwd, commands);
+  openSingleTerminal(projectName: string, cwd: string, terminalName: string, commands: string[], prefill: boolean = false): string {
+    return this.create(projectName, terminalName, cwd, commands, prefill);
   }
 
   /** Get terminal names currently running for a project. */

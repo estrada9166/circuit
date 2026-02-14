@@ -38,6 +38,7 @@ export interface TabGroup {
   label: string;
   sessionIds: string[];
   element: HTMLDivElement;
+  color?: string;
 }
 
 export const sessions = new Map<string, TerminalSession>();

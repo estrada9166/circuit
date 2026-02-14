@@ -8,6 +8,7 @@ import {
   focusedSessionId,
   gitPanelProject,
   notifiedSessionIds,
+  projects,
   setActiveGroupId,
   setFocusedSessionId,
   nextGroupId,
@@ -56,6 +57,13 @@ const TERMINAL_OPTIONS = {
   cursorBlink: true,
   allowProposedApi: true,
 };
+
+function hexToRgba(hex: string, alpha: number): string {
+  const r = parseInt(hex.slice(1, 3), 16);
+  const g = parseInt(hex.slice(3, 5), 16);
+  const b = parseInt(hex.slice(5, 7), 16);
+  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+}
 
 // ---- Initialize DOM refs and global event handlers ----
 
@@ -184,12 +192,16 @@ export function createTabGroup(session: TerminalSession): TabGroup {
 
   terminalContainer.appendChild(pane);
 
+  // Look up the project color
+  const project = projects.find(p => p.name === session.projectName);
+
   const group: TabGroup = {
     id: gid,
     projectName: session.projectName,
     label: `${session.projectName}: ${session.terminalName}`,
     sessionIds: [session.id],
     element: pane,
+    color: project?.color,
   };
 
   session.groupId = gid;
@@ -416,6 +428,13 @@ export function renderTerminalTabs(): void {
     tab.setAttribute('role', 'tab');
     tab.setAttribute('aria-selected', String(isActive));
     tab.setAttribute('tabindex', isActive ? '0' : '-1');
+
+    if (group.color) {
+      tab.style.borderLeft = `3px solid ${group.color}`;
+      if (isActive) {
+        tab.style.background = hexToRgba(group.color, 0.12);
+      }
+    }
 
     const splitCount = group.sessionIds.length;
     const label =

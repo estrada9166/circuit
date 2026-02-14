@@ -6,7 +6,7 @@ import type { Project, TerminalConfig, UpdatableProjectFields } from './types';
 import { migrateStoreData } from './migration';
 
 const CONFIG_PATH = path.join(os.homedir(), '.iterm-projects.json');
-const UPDATABLE_FIELDS = new Set<string>(['path', 'terminals']);
+const UPDATABLE_FIELDS = new Set<string>(['path', 'terminals', 'color']);
 
 export class Store {
   projects: Project[] = [];
@@ -67,10 +67,11 @@ export class Store {
     return resolved;
   }
 
-  addProject({ name, path: projPath, terminals = [] }: {
+  addProject({ name, path: projPath, terminals = [], color }: {
     name: string;
     path: string;
     terminals?: TerminalConfig[];
+    color?: string;
   }): Project {
     if (!name || typeof name !== 'string') {
       throw new Error('Name is required');
@@ -87,6 +88,7 @@ export class Store {
     }
 
     const project: Project = { name, path: resolved, terminals };
+    if (color) project.color = color;
     this.projects.push(project);
     this._save();
     return project;
@@ -151,6 +153,10 @@ export class Store {
         throw new Error('Terminals must be an array');
       }
       project.terminals = fields.terminals;
+    }
+
+    if (fields.color !== undefined) {
+      project.color = fields.color || undefined;
     }
 
     this._save();

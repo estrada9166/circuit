@@ -238,7 +238,7 @@ app.whenReady().then(() => {
     if (typeof p.name !== 'string' || typeof p.path !== 'string') {
       throw new Error('Project must have name and path strings');
     }
-    return store.addProject(project as { name: string; path: string; terminals?: [] });
+    return store.addProject(project as { name: string; path: string; terminals?: []; color?: string });
   });
 
   ipcMain.handle(IPC.STORE_REMOVE, (_, name: unknown) => {
@@ -291,7 +291,7 @@ app.whenReady().then(() => {
   });
 
   // Open a single terminal by name
-  ipcMain.handle(IPC.PROJECT_OPEN_SINGLE_TERMINAL, (_, projectName: unknown, terminalName: unknown) => {
+  ipcMain.handle(IPC.PROJECT_OPEN_SINGLE_TERMINAL, (_, projectName: unknown, terminalName: unknown, prefill: unknown) => {
     if (typeof projectName !== 'string' || typeof terminalName !== 'string') {
       throw new Error('Project name and terminal name must be strings');
     }
@@ -301,7 +301,7 @@ app.whenReady().then(() => {
     const termConfig = project.terminals.find(t => t.name === terminalName);
     const commands = termConfig?.commands ?? [];
 
-    const id = ptyManager.openSingleTerminal(projectName, project.path, terminalName, commands);
+    const id = ptyManager.openSingleTerminal(projectName, project.path, terminalName, commands, prefill === true);
 
     mainWindow?.webContents.send(IPC.TERMINAL_CREATED, {
       id,

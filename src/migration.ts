@@ -53,12 +53,19 @@ export function migrateStoreData(raw: unknown): { data: StoreData; wasMigrated: 
               typeof (t as Record<string, unknown>).name === 'string' &&
               Array.isArray((t as Record<string, unknown>).commands)
             )
-            .map(t => ({
-              name: t.name,
-              commands: t.commands.filter((c: unknown): c is string => typeof c === 'string'),
-            }))
+            .map(t => {
+              const tc: { name: string; commands: string[]; color?: string } = {
+                name: t.name,
+                commands: t.commands.filter((c: unknown): c is string => typeof c === 'string'),
+              };
+              const color = (t as Record<string, unknown>).color;
+              if (typeof color === 'string' && color) tc.color = color;
+              return tc;
+            })
         : [];
-      projects.push({ name: item.name as string, path: item.path as string, terminals });
+      const project: Project = { name: item.name as string, path: item.path as string, terminals };
+      if (typeof item.color === 'string' && item.color) project.color = item.color;
+      projects.push(project);
     }
   }
 
