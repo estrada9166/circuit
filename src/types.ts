@@ -2,6 +2,7 @@
 export interface TerminalConfig {
   name: string;
   commands: string[];
+  color?: string;
 }
 
 /** A project with its terminal configurations */
@@ -9,6 +10,7 @@ export interface Project {
   name: string;
   path: string;
   terminals: TerminalConfig[];
+  color?: string;
 }
 
 /** Old project format with flat commands array (for migration) */
@@ -27,7 +29,7 @@ export interface StoreData {
 }
 
 /** Fields that can be updated via store:update */
-export type UpdatableProjectFields = Partial<Pick<Project, 'path' | 'terminals'>>;
+export type UpdatableProjectFields = Partial<Pick<Project, 'path' | 'terminals' | 'color'>>;
 
 /** Data sent from main to renderer when a PTY is created */
 export interface PtyCreatedEvent {
@@ -100,13 +102,13 @@ export const IPC = {
 /** The shape of window.api exposed by the preload script */
 export interface PreloadApi {
   loadProjects(): Promise<Project[]>;
-  addProject(project: { name: string; path: string; terminals?: TerminalConfig[] }): Promise<Project>;
+  addProject(project: { name: string; path: string; terminals?: TerminalConfig[]; color?: string }): Promise<Project>;
   removeProject(name: string): Promise<void>;
   updateProject(name: string, fields: UpdatableProjectFields): Promise<Project>;
   reorderProjects(names: string[]): Promise<void>;
   openProject(projectName: string): Promise<string[]>;
   closeProject(projectName: string): Promise<void>;
-  openSingleTerminal(projectName: string, terminalName: string): Promise<PtyCreatedEvent | null>;
+  openSingleTerminal(projectName: string, terminalName: string, prefill?: boolean): Promise<PtyCreatedEvent | null>;
   splitPane(ptyId: string): Promise<PtyCreatedEvent | null>;
   newTerminal(projectName: string): Promise<PtyCreatedEvent | null>;
   getActiveProjects(): Promise<string[]>;

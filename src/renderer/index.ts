@@ -44,8 +44,8 @@ async function init(): Promise<void> {
     splitSession: (sessionId) => splitSession(sessionId),
     showEditDialog,
     showRemoveDialog,
-    openSingleTerminal: (projectName, terminalName) => {
-      window.api.openSingleTerminal(projectName, terminalName);
+    openSingleTerminal: (projectName, terminalName, prefill) => {
+      window.api.openSingleTerminal(projectName, terminalName, prefill);
     },
     newTerminal: (projectName) => {
       window.api.newTerminal(projectName);

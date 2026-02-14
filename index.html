@@ -302,9 +302,10 @@
       align-items: center;
       justify-content: center;
       flex-shrink: 0;
-      font-size: 14px;
-      font-weight: 700;
+      font-size: 13px;
+      font-weight: 600;
       color: var(--accent);
+      letter-spacing: 0.5px;
     }
 
     .project-details {
@@ -788,10 +789,77 @@
       margin-bottom: 6px;
     }
 
+    .color-swatches {
+      display: flex;
+      gap: 6px;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+    .color-swatch {
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      cursor: pointer;
+      border: 2px solid transparent;
+      transition: transform 0.12s, box-shadow 0.12s;
+      flex-shrink: 0;
+      padding: 0;
+      outline: none;
+    }
+    .color-swatch:hover { transform: scale(1.2); }
+    .color-swatch.selected {
+      box-shadow: 0 0 0 2px #2c2c2e, 0 0 0 3.5px rgba(255, 255, 255, 0.5);
+    }
+    .color-swatch-none {
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      cursor: pointer;
+      border: 1.5px solid var(--text-tertiary);
+      background: transparent;
+      position: relative;
+      transition: transform 0.12s, border-color 0.12s;
+      flex-shrink: 0;
+      padding: 0;
+      outline: none;
+    }
+    .color-swatch-none::after {
+      content: '';
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      width: 14px;
+      height: 1.5px;
+      background: var(--text-tertiary);
+      transform: translate(-50%, -50%) rotate(-45deg);
+    }
+    .color-swatch-none:hover { transform: scale(1.2); border-color: var(--text-secondary); }
+    .color-swatch-none.selected {
+      border-color: var(--text);
+      box-shadow: 0 0 0 2px #2c2c2e, 0 0 0 3.5px rgba(255, 255, 255, 0.5);
+    }
+    .color-swatches-sm .color-swatch,
+    .color-swatches-sm .color-swatch-none { width: 16px; height: 16px; }
+    .color-swatches-sm .color-swatch-none::after { width: 10px; }
+    .edit-terminal-entry .color-swatches { margin: 4px 0; }
+
     .terminal-name-input { flex: 1; margin-right: 6px; }
     .terminal-commands-input { min-height: 40px !important; }
     .btn-remove-terminal { padding: 2px 6px !important; font-size: 14px !important; line-height: 1; }
     .btn-add-term { font-size: 11px; margin-top: 2px; }
+
+    .project-color-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin: 10px 0;
+    }
+    .project-color-label {
+      font-size: 12px;
+      color: var(--text-secondary);
+      flex-shrink: 0;
+      margin-bottom: 0 !important;
+    }
 
     .no-terminals-hint {
       font-size: 11px;
@@ -1470,6 +1538,10 @@
         <button type="button" class="btn" id="btn-browse">Browse</button>
       </div>
     </label>
+    <div class="project-color-row">
+      <label class="project-color-label">Color</label>
+      <div class="color-swatches" id="add-color-swatches"></div>
+    </div>
     <h3>Terminals</h3>
     <div id="add-terminals-container"></div>
     <button type="button" class="btn ghost btn-add-term" id="btn-add-terminal-new">+ Terminal</button>
@@ -1483,6 +1555,10 @@
   <!-- Edit Project Dialog -->
   <dialog id="edit-dialog">
     <h2>Edit <span id="edit-project-name"></span></h2>
+    <div class="project-color-row">
+      <label class="project-color-label">Color</label>
+      <div class="color-swatches" id="edit-color-swatches"></div>
+    </div>
     <div id="edit-terminals-container"></div>
     <button type="button" class="btn ghost btn-add-term" id="btn-add-terminal">+ Terminal</button>
     <div class="error-msg" id="edit-error"></div>
