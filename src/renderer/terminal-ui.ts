@@ -147,7 +147,7 @@ export function makeTerminalSession(
       return false; // prevent xterm from processing any Shift+Enter event
     }
     // Let Cmd/Ctrl shortcuts bubble up to the document handler
-    if ((event.metaKey || event.ctrlKey) && ['n', 't', 'p', 'd', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(event.key)) {
+    if ((event.metaKey || event.ctrlKey) && ['n', 't', 'p', 'd', 'k', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(event.key)) {
       return false;
     }
     return true;

@@ -138,7 +138,7 @@ async function init(): Promise<void> {
     window.api.openStandaloneTerminal();
   });
 
-  // ── Shortcut popup (shown when Cmd/Ctrl is held or button clicked) ──
+  // ── Shortcut popup (shown when shortcuts button is clicked) ──
   const shortcutOverlay = document.createElement('div');
   shortcutOverlay.className = 'shortcut-overlay';
   shortcutOverlay.hidden = true;
@@ -155,25 +155,18 @@ async function init(): Promise<void> {
     <div class="shortcut-row"><span class="shortcut-key">\u2318 T</span><span class="shortcut-desc">New terminal</span></div>
     <div class="shortcut-row"><span class="shortcut-key">\u2318 P</span><span class="shortcut-desc">Command palette</span></div>
     <div class="shortcut-row"><span class="shortcut-key">\u2318 D</span><span class="shortcut-desc">Split pane</span></div>
+    <div class="shortcut-row"><span class="shortcut-key">\u2318 K</span><span class="shortcut-desc">Clear terminal</span></div>
   `;
   document.body.appendChild(shortcutPopup);
 
-  let cmdHoldTimer: ReturnType<typeof setTimeout> | null = null;
-  let shortcutPinned = false; // true when opened via button click
-
   function showShortcutPopup(): void {
     shortcutPopup.hidden = false;
-    shortcutOverlay.hidden = shortcutPinned ? false : true;
+    shortcutOverlay.hidden = false;
   }
 
   function hideShortcutPopup(): void {
     shortcutPopup.hidden = true;
     shortcutOverlay.hidden = true;
-    shortcutPinned = false;
-    if (cmdHoldTimer) {
-      clearTimeout(cmdHoldTimer);
-      cmdHoldTimer = null;
-    }
   }
 
   // Shortcuts button in sidebar
@@ -181,7 +174,6 @@ async function init(): Promise<void> {
     if (!shortcutPopup.hidden) {
       hideShortcutPopup();
     } else {
-      shortcutPinned = true;
       showShortcutPopup();
     }
   });
@@ -189,9 +181,9 @@ async function init(): Promise<void> {
   // Click overlay to dismiss
   shortcutOverlay.addEventListener('click', hideShortcutPopup);
 
-  // Escape to dismiss when pinned
+  // Escape to dismiss
   document.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape' && shortcutPinned) {
+    if (e.key === 'Escape' && !shortcutPopup.hidden) {
       hideShortcutPopup();
     }
   });
@@ -199,22 +191,6 @@ async function init(): Promise<void> {
   // Keyboard shortcuts
   document.addEventListener('keydown', (e) => {
     const mod = e.metaKey || e.ctrlKey;
-
-    // Cmd/Ctrl held alone — start timer to show popup (only if not pinned)
-    if ((e.key === 'Meta' || e.key === 'Control') && !e.shiftKey && !e.altKey) {
-      if (!cmdHoldTimer && !shortcutPinned) {
-        cmdHoldTimer = setTimeout(showShortcutPopup, 400);
-      }
-      return;
-    }
-
-    // Any other key while Cmd held — cancel/hide the Cmd-hold popup (not pinned)
-    if (!shortcutPinned) {
-      hideShortcutPopup();
-    } else if (cmdHoldTimer) {
-      clearTimeout(cmdHoldTimer);
-      cmdHoldTimer = null;
-    }
 
     if (!mod) return;
 
@@ -238,6 +214,15 @@ async function init(): Promise<void> {
       e.preventDefault();
       const focused = focusedSessionId;
       if (focused) splitSession(focused);
+    }
+    // Cmd/Ctrl+K: clear terminal
+    if (e.key === 'k') {
+      e.preventDefault();
+      const focused = focusedSessionId;
+      if (focused) {
+        const session = sessions.get(focused);
+        if (session) session.terminal.clear();
+      }
     }
     // Cmd/Ctrl+Left/Right: cycle tabs
     if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
@@ -294,13 +279,7 @@ async function init(): Promise<void> {
     }
   });
 
-  document.addEventListener('keyup', (e) => {
-    if ((e.key === 'Meta' || e.key === 'Control') && !shortcutPinned) {
-      hideShortcutPopup();
-    }
-  });
-
-  // Hide popup if window loses focus (e.g. Cmd+Tab to another app)
+  // Hide popup if window loses focus
   window.addEventListener('blur', hideShortcutPopup);
 }
 

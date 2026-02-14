@@ -1,5 +1,12 @@
 # Changelog
 
+## [3.3.0] - 2026-02-14
+
+### Fixed
+
+- **Cmd+K clear terminal**: Cmd+K now correctly clears the terminal scrollback buffer
+- **Shortcut popup on Cmd hold**: Removed the behavior where holding Cmd/Ctrl would show the shortcuts popup — it now only appears when the Shortcuts button is clicked
+
 ## [3.2.0] - 2026-02-14
 
 ### Fixed — Performance & Memory Leaks
