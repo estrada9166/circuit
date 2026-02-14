@@ -1,0 +1,62 @@
+{
+  "name": "iterm-project-manager",
+  "version": "3.0.0",
+  "description": "Project manager with integrated terminal",
+  "main": "dist/src/main.js",
+  "scripts": {
+    "build:main": "tsc -p tsconfig.json",
+    "build:preload": "esbuild src/preload.ts --bundle --outfile=dist/src/preload.js --platform=node --format=cjs --external:electron",
+    "build:renderer": "esbuild src/renderer/index.ts --bundle --outfile=dist/renderer.bundle.js --platform=browser --format=esm --external:electron",
+    "build": "npm run build:main && npm run build:preload && npm run build:renderer && cp node_modules/@xterm/xterm/css/xterm.css dist/xterm.css && cp node_modules/diff2html/bundles/css/diff2html.min.css dist/diff2html.css",
+    "build:watch": "concurrently \"tsc -p tsconfig.json --watch\" \"esbuild src/preload.ts --bundle --outfile=dist/src/preload.js --platform=node --format=cjs --external:electron --watch\" \"esbuild src/renderer/index.ts --bundle --outfile=dist/renderer.bundle.js --platform=browser --format=esm --external:electron --watch\"",
+    "prestart": "npm run build",
+    "start": "electron dist/src/main.js",
+    "postinstall": "electron-rebuild",
+    "prepack": "npm run build",
+    "pack": "electron-builder --dir",
+    "predist": "npm run build",
+    "dist": "electron-builder"
+  },
+  "devDependencies": {
+    "@electron/rebuild": "^4.0.3",
+    "@types/node": "^22.0.0",
+    "concurrently": "^9.0.0",
+    "electron": "^33.0.0",
+    "electron-builder": "^25.0.0",
+    "esbuild": "^0.27.3",
+    "typescript": "^5.7.0"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "electron",
+      "node-pty",
+      "esbuild",
+      "@electron/rebuild"
+    ]
+  },
+  "build": {
+    "appId": "com.iterm-project-manager",
+    "productName": "Project Manager",
+    "files": [
+      "dist/**/*",
+      "index.html",
+      "node_modules/@xterm/**/*",
+      "node_modules/node-pty/**/*",
+      "node_modules/diff2html/**/*"
+    ],
+    "asarUnpack": [
+      "node_modules/node-pty/**/*"
+    ],
+    "mac": {
+      "category": "public.app-category.developer-tools",
+      "target": "dmg"
+    }
+  },
+  "dependencies": {
+    "@xterm/addon-fit": "^0.11.0",
+    "@xterm/addon-web-links": "^0.12.0",
+    "@xterm/xterm": "^6.0.0",
+    "diff2html": "^3.4.56",
+    "node-pty": "^1.1.0"
+  }
+}

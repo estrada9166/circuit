@@ -1,0 +1,1385 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Project Manager</title>
+  <meta http-equiv="Content-Security-Policy"
+        content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; object-src 'none'; base-uri 'self'; form-action 'self'">
+  <link rel="stylesheet" href="dist/xterm.css">
+  <link rel="stylesheet" href="dist/diff2html.css">
+  <style>
+    :root {
+      --bg: #1c1c1e;
+      --bg-hover: rgba(255, 255, 255, 0.06);
+      --bg-selected: rgba(255, 255, 255, 0.1);
+      --bg-active-dot: #32d74b;
+      --text: #f5f5f7;
+      --text-secondary: #aeaeb2;
+      --text-tertiary: #8e8e93;
+      --accent: #0a84ff;
+      --accent-hover: #409cff;
+      --danger: #ff453a;
+      --border: rgba(255, 255, 255, 0.08);
+      --radius: 8px;
+      --shadow-dialog: 0 24px 64px rgba(0,0,0,0.5), 0 8px 20px rgba(0,0,0,0.3);
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, sans-serif;
+      color: var(--text);
+      background: var(--bg);
+      -webkit-font-smoothing: antialiased;
+      overflow: hidden;
+      height: 100vh;
+    }
+
+    /* Scope user-select: none to chrome elements only; terminals/inputs remain selectable */
+    .sidebar, .terminal-tabs, .project-actions, .action-btn, .add-btn, .terminal-tab {
+      user-select: none;
+    }
+
+    /* Global focus-visible style for keyboard navigation */
+    :focus-visible {
+      outline: 2px solid var(--accent);
+      outline-offset: 2px;
+    }
+
+    /* Reset outline on elements that have their own focus indicators */
+    dialog input:focus-visible, dialog textarea:focus-visible {
+      outline: none;
+    }
+
+    /* ── App layout ── */
+    .app-layout {
+      display: flex;
+      height: 100vh;
+      overflow: hidden;
+    }
+
+    /* ── Sidebar ── */
+    .sidebar {
+      width: 280px;
+      min-width: 280px;
+      max-width: 280px;
+      display: flex;
+      flex-direction: column;
+      border-right: 1px solid var(--border);
+      background: rgba(28, 28, 30, 0.95);
+    }
+
+    /* ── Drag region (title bar area) ── */
+    .drag-region {
+      -webkit-app-region: drag;
+      height: 38px;
+      flex-shrink: 0;
+    }
+
+    /* ── Header ── */
+    .header {
+      padding: 0 16px 12px;
+      flex-shrink: 0;
+    }
+
+    .header h1 {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text-secondary);
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+    }
+
+    /* ── Project list ── */
+    .project-list {
+      list-style: none;
+      flex: 1;
+      overflow-y: auto;
+      padding: 0 8px;
+    }
+
+    .project-item {
+      border-radius: var(--radius);
+      cursor: pointer;
+      transition: background 0.12s ease;
+      position: relative;
+    }
+
+    .project-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 8px 10px;
+      border-radius: var(--radius);
+      position: relative;
+    }
+
+    .project-row:hover {
+      background: var(--bg-hover);
+    }
+
+    .project-item.active .project-row {
+      background: var(--bg-selected);
+    }
+
+    /* ── Chevron ── */
+    .project-chevron {
+      width: 14px;
+      height: 14px;
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--text-tertiary);
+      transition: transform 0.15s ease;
+    }
+
+    .project-chevron.open {
+      transform: rotate(90deg);
+    }
+
+    /* ── Terminal sub-list ── */
+    .terminal-sub-list {
+      list-style: none;
+      padding: 2px 0 4px 0;
+      margin: 0;
+    }
+
+    .terminal-sub-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 5px 10px 5px 36px;
+      font-size: 12px;
+      color: var(--text-secondary);
+      cursor: pointer;
+      border-radius: 4px;
+      margin: 0 8px;
+      transition: background 0.1s;
+    }
+
+    .terminal-sub-item:hover {
+      background: var(--bg-hover);
+      color: var(--text);
+    }
+
+    .terminal-sub-icon {
+      flex-shrink: 0;
+      opacity: 0.5;
+    }
+
+    .terminal-sub-name {
+      flex: 1;
+      min-width: 0;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .terminal-sub-notification {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--accent);
+      flex-shrink: 0;
+      box-shadow: 0 0 4px rgba(10, 132, 255, 0.5);
+      animation: pulse 2s ease-in-out infinite;
+    }
+
+    .terminal-sub-item.has-notification .terminal-sub-name {
+      color: var(--text);
+    }
+
+    .terminal-sub-running {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--bg-active-dot);
+      flex-shrink: 0;
+      box-shadow: 0 0 4px rgba(50, 215, 75, 0.4);
+    }
+
+    .terminal-sub-new {
+      width: 18px;
+      height: 18px;
+      border: none;
+      border-radius: 4px;
+      background: transparent;
+      color: var(--text-tertiary);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      opacity: 0;
+      transition: all 0.1s;
+    }
+
+    .terminal-sub-item:hover .terminal-sub-new {
+      opacity: 1;
+    }
+
+    .terminal-sub-new:hover {
+      background: rgba(255, 255, 255, 0.1);
+      color: var(--accent);
+    }
+
+    .terminal-sub-delete {
+      width: 18px;
+      height: 18px;
+      border: none;
+      border-radius: 4px;
+      background: transparent;
+      color: var(--text-tertiary);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      opacity: 0;
+      transition: all 0.1s;
+    }
+
+    .terminal-sub-item:hover .terminal-sub-delete {
+      opacity: 1;
+    }
+
+    .terminal-sub-delete:hover {
+      background: rgba(255, 69, 58, 0.15);
+      color: var(--danger);
+    }
+
+    .terminal-sub-action {
+      font-size: 10px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: var(--text-tertiary);
+      opacity: 0;
+      transition: opacity 0.1s;
+      flex-shrink: 0;
+    }
+
+    .terminal-sub-item:hover .terminal-sub-action {
+      opacity: 1;
+      color: var(--accent);
+    }
+
+    .terminal-sub-item.running .terminal-sub-name {
+      color: var(--text);
+    }
+
+    .terminal-sub-item.run-all {
+      margin-top: 2px;
+      padding-top: 5px;
+      border-top: 1px solid var(--border);
+      color: var(--accent);
+      font-weight: 500;
+    }
+
+    .terminal-sub-item.run-all .terminal-sub-icon {
+      opacity: 0.8;
+      color: var(--accent);
+    }
+
+    .project-icon {
+      width: 32px;
+      height: 32px;
+      border-radius: 8px;
+      background: rgba(255, 255, 255, 0.06);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      font-size: 14px;
+      font-weight: 700;
+      color: var(--accent);
+    }
+
+    .project-details {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .project-name {
+      font-size: 13px;
+      font-weight: 500;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      line-height: 1.3;
+    }
+
+    .project-meta {
+      font-size: 11px;
+      color: var(--text-tertiary);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      line-height: 1.3;
+    }
+
+    .active-indicator {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--bg-active-dot);
+      flex-shrink: 0;
+      box-shadow: 0 0 6px rgba(50, 215, 75, 0.4);
+      animation: pulse 2s ease-in-out infinite;
+    }
+
+    .notification-indicator {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--accent);
+      flex-shrink: 0;
+      box-shadow: 0 0 6px rgba(10, 132, 255, 0.5);
+      animation: pulse 2s ease-in-out infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.6; }
+    }
+
+    /* ── Project actions (shown on hover) ── */
+    .project-actions {
+      display: flex;
+      gap: 2px;
+      position: absolute;
+      right: 6px;
+      top: 50%;
+      transform: translateY(-50%);
+      opacity: 0;
+      transition: opacity 0.1s;
+      background: rgba(44, 44, 46, 0.95);
+      border-radius: 6px;
+      padding: 2px;
+    }
+
+    .project-row:hover .project-actions {
+      opacity: 1;
+    }
+
+    .action-btn {
+      width: 24px;
+      height: 24px;
+      border: none;
+      border-radius: 4px;
+      background: transparent;
+      color: var(--text-secondary);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 13px;
+      transition: all 0.1s;
+    }
+
+    .action-btn:hover {
+      background: rgba(255, 255, 255, 0.1);
+      color: var(--text);
+    }
+
+    .action-btn.danger:hover {
+      color: var(--danger);
+    }
+
+    /* ── Empty state ── */
+    .empty-state {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+      text-align: center;
+    }
+
+    .empty-state svg {
+      width: 36px;
+      height: 36px;
+      stroke: var(--text-tertiary);
+      fill: none;
+      stroke-width: 1.5;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+      margin-bottom: 12px;
+      opacity: 0.6;
+    }
+
+    .empty-state p {
+      font-size: 12px;
+      color: var(--text-tertiary);
+      line-height: 1.5;
+    }
+
+    /* ── Bottom bar ── */
+    .bottom-bar {
+      padding: 12px 8px;
+      flex-shrink: 0;
+      border-top: 1px solid var(--border);
+    }
+
+    .add-btn {
+      width: 100%;
+      padding: 8px;
+      border: 1px dashed rgba(255, 255, 255, 0.15);
+      border-radius: var(--radius);
+      background: transparent;
+      color: var(--text-secondary);
+      cursor: pointer;
+      font-size: 12px;
+      font-weight: 500;
+      font-family: inherit;
+      transition: all 0.15s;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+    }
+
+    .add-btn:hover {
+      border-color: var(--accent);
+      color: var(--accent);
+      background: rgba(10, 132, 255, 0.08);
+    }
+
+    .add-btn:active {
+      transform: scale(0.98);
+    }
+
+    /* ── Terminal area ── */
+    .terminal-area {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      background: #1c1c1e;
+      min-width: 0;
+    }
+
+    .terminal-tabs {
+      display: flex;
+      align-items: center;
+      height: 36px;
+      min-height: 36px;
+      background: #2c2c2e;
+      border-bottom: 1px solid var(--border);
+      overflow-x: auto;
+      flex-shrink: 0;
+      padding: 0 8px;
+      gap: 2px;
+      -webkit-app-region: drag;
+    }
+
+    .terminal-tab {
+      -webkit-app-region: no-drag;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 12px;
+      border-radius: 6px;
+      font-size: 11px;
+      font-weight: 500;
+      color: var(--text-secondary);
+      cursor: pointer;
+      white-space: nowrap;
+      transition: background 0.12s, color 0.12s;
+      user-select: none;
+    }
+
+    .terminal-tab:hover {
+      background: rgba(255, 255, 255, 0.06);
+      color: var(--text);
+    }
+
+    .terminal-tab.active {
+      background: rgba(255, 255, 255, 0.1);
+      color: var(--text);
+    }
+
+    .tab-notification {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--accent);
+      flex-shrink: 0;
+      box-shadow: 0 0 4px rgba(10, 132, 255, 0.5);
+      animation: pulse 2s ease-in-out infinite;
+    }
+
+    .terminal-tab .tab-close {
+      width: 14px;
+      height: 14px;
+      border: none;
+      background: transparent;
+      color: var(--text-tertiary);
+      cursor: pointer;
+      border-radius: 3px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 12px;
+      line-height: 1;
+      padding: 0;
+      opacity: 0;
+      transition: opacity 0.1s;
+    }
+
+    .terminal-tab:hover .tab-close {
+      opacity: 1;
+    }
+
+    .terminal-tab .tab-close:hover {
+      background: rgba(255, 69, 58, 0.2);
+      color: var(--danger);
+    }
+
+    .terminal-container {
+      flex: 1;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .terminal-pane {
+      position: absolute;
+      inset: 0;
+      display: none;
+      flex-direction: row;
+    }
+
+    .terminal-pane.active {
+      display: flex;
+    }
+
+    .split-terminal {
+      flex: 1;
+      min-width: 0;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .split-terminal .xterm {
+      height: 100%;
+      padding: 4px;
+    }
+
+    .split-terminal.focused::after {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 2px;
+      background: var(--accent);
+      z-index: 1;
+      pointer-events: none;
+    }
+
+    .split-divider {
+      width: 1px;
+      background: var(--border);
+      flex-shrink: 0;
+    }
+
+    .pane-close {
+      position: absolute;
+      top: 6px;
+      right: 6px;
+      z-index: 2;
+      width: 20px;
+      height: 20px;
+      border: none;
+      background: rgba(44, 44, 46, 0.9);
+      color: var(--text-tertiary);
+      cursor: pointer;
+      border-radius: 4px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 14px;
+      line-height: 1;
+      padding: 0;
+      opacity: 0;
+      transition: opacity 0.15s;
+    }
+
+    .split-terminal:hover .pane-close {
+      opacity: 1;
+    }
+
+    .pane-close:hover {
+      background: rgba(255, 69, 58, 0.3);
+      color: var(--danger);
+    }
+
+    .terminal-empty-state {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--text-tertiary);
+      font-size: 13px;
+    }
+
+    /* ── Dialogs ── */
+    dialog {
+      border: none;
+      border-radius: 14px;
+      padding: 24px;
+      width: 400px;
+      max-width: 90vw;
+      max-height: 80vh;
+      overflow-y: auto;
+      box-shadow: var(--shadow-dialog);
+      font-family: inherit;
+      background: #2c2c2e;
+      color: var(--text);
+    }
+
+    dialog::backdrop {
+      background: rgba(0, 0, 0, 0.5);
+      backdrop-filter: blur(4px);
+      -webkit-backdrop-filter: blur(4px);
+    }
+
+    dialog h2 {
+      font-size: 16px;
+      font-weight: 700;
+      margin-bottom: 16px;
+    }
+
+    dialog h3 {
+      font-size: 11px;
+      font-weight: 600;
+      margin: 14px 0 6px;
+      color: var(--text-secondary);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    dialog label {
+      display: block;
+      font-size: 12px;
+      font-weight: 500;
+      margin-bottom: 12px;
+      color: var(--text-secondary);
+    }
+
+    dialog input, dialog textarea {
+      display: block;
+      width: 100%;
+      padding: 8px 10px;
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      border-radius: 6px;
+      font-size: 12px;
+      font-family: inherit;
+      margin-top: 4px;
+      background: #1c1c1e;
+      color: var(--text);
+      transition: border-color 0.15s;
+    }
+
+    dialog input:focus, dialog textarea:focus {
+      outline: none;
+      border-color: var(--accent);
+      box-shadow: 0 0 0 2px rgba(10, 132, 255, 0.2);
+    }
+
+    dialog input::placeholder, dialog textarea::placeholder {
+      color: var(--text-tertiary);
+    }
+
+    dialog textarea {
+      resize: vertical;
+      min-height: 52px;
+      font-family: "SF Mono", "Menlo", monospace;
+      font-size: 11px;
+      line-height: 1.4;
+    }
+
+    .path-row {
+      display: flex;
+      gap: 6px;
+      margin-top: 4px;
+    }
+
+    .path-row input {
+      flex: 1;
+      margin-top: 0;
+      font-family: "SF Mono", "Menlo", monospace;
+      font-size: 11px;
+    }
+
+    .btn {
+      padding: 6px 14px;
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      border-radius: 6px;
+      background: #3a3a3c;
+      cursor: pointer;
+      font-size: 12px;
+      font-weight: 500;
+      font-family: inherit;
+      color: var(--text);
+      transition: all 0.12s;
+    }
+
+    .btn:hover { background: #48484a; }
+    .btn:active { transform: scale(0.97); }
+    .btn.primary { background: var(--accent); color: #fff; border-color: var(--accent); }
+    .btn.primary:hover { background: var(--accent-hover); }
+    .btn.danger { color: var(--danger); border-color: transparent; background: transparent; }
+    .btn.danger:hover { background: rgba(255, 69, 58, 0.12); }
+    .btn.ghost { border-color: transparent; background: transparent; color: var(--text-secondary); }
+    .btn.ghost:hover { background: rgba(255, 255, 255, 0.06); color: var(--text); }
+
+    .dialog-actions {
+      display: flex;
+      justify-content: flex-end;
+      gap: 8px;
+      margin-top: 20px;
+      padding-top: 14px;
+      border-top: 1px solid var(--border);
+    }
+
+    .error-msg {
+      color: var(--danger);
+      font-size: 11px;
+      margin-top: 4px;
+      min-height: 14px;
+      font-weight: 500;
+    }
+
+    /* ── Terminal entry cards in dialogs ── */
+    .edit-terminal-entry {
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 10px;
+      margin-bottom: 6px;
+      background: #1c1c1e;
+      transition: border-color 0.12s;
+    }
+
+    .edit-terminal-entry:focus-within {
+      border-color: var(--accent);
+    }
+
+    .terminal-entry-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 6px;
+    }
+
+    .terminal-name-input { flex: 1; margin-right: 6px; }
+    .terminal-commands-input { min-height: 40px !important; }
+    .btn-remove-terminal { padding: 2px 6px !important; font-size: 14px !important; line-height: 1; }
+    .btn-add-term { font-size: 11px; margin-top: 2px; }
+
+    .no-terminals-hint {
+      font-size: 11px;
+      color: var(--text-tertiary);
+      text-align: center;
+      padding: 12px;
+    }
+
+    /* ── Tab icon ── */
+    .tab-icon {
+      flex-shrink: 0;
+      opacity: 0.7;
+    }
+
+    /* ── Git panel ── */
+    .git-pane {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      flex-direction: column;
+      background: var(--bg);
+    }
+
+    .git-center {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 100%;
+      gap: 10px;
+      color: var(--text-tertiary);
+      font-size: 13px;
+    }
+
+    .git-spinner {
+      width: 18px;
+      height: 18px;
+      border: 2px solid rgba(255,255,255,0.08);
+      border-top-color: var(--accent);
+      border-radius: 50%;
+      animation: spin 0.6s linear infinite;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    /* ── Git header bar ── */
+    .git-header-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 12px 20px;
+      border-bottom: 1px solid var(--border);
+      flex-shrink: 0;
+      background: rgba(44, 44, 46, 0.5);
+    }
+
+    .git-header-left {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 12px;
+      font-weight: 500;
+      color: var(--text-secondary);
+    }
+
+    .git-header-left svg {
+      color: var(--accent);
+      opacity: 0.8;
+    }
+
+    .git-header-changes {
+      color: #ff9f0a;
+      padding-left: 8px;
+      border-left: 1px solid var(--border);
+    }
+
+    .git-refresh-btn {
+      border: none;
+      background: transparent;
+      color: var(--text-tertiary);
+      cursor: pointer;
+      padding: 4px;
+      border-radius: 4px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.15s;
+    }
+
+    .git-refresh-btn:hover {
+      color: var(--text);
+      background: rgba(255,255,255,0.06);
+    }
+
+    /* ── Git repos scroll area ── */
+    .git-repos-scroll {
+      flex: 1;
+      overflow-y: auto;
+      padding: 12px 16px;
+    }
+
+    .git-section-divider {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin: 16px 0 10px;
+      font-size: 11px;
+      color: var(--text-tertiary);
+      font-weight: 500;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .git-section-divider::after {
+      content: '';
+      flex: 1;
+      height: 1px;
+      background: var(--border);
+    }
+
+    /* ── Repo cards ── */
+    .git-repo-card {
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      margin-bottom: 8px;
+      overflow: hidden;
+      background: #232325;
+      transition: border-color 0.15s;
+    }
+
+    .git-repo-card.has-changes {
+      border-color: rgba(255, 149, 0, 0.15);
+    }
+
+    .git-repo-card.has-changes:hover {
+      border-color: rgba(255, 149, 0, 0.3);
+    }
+
+    .git-repo-header {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 10px 14px;
+      cursor: pointer;
+      transition: background 0.12s;
+    }
+
+    .git-repo-header:hover {
+      background: rgba(255, 255, 255, 0.03);
+    }
+
+    .git-repo-chevron {
+      color: var(--text-tertiary);
+      flex-shrink: 0;
+      width: 14px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: transform 0.15s ease;
+    }
+
+    .git-repo-chevron.open {
+      transform: rotate(90deg);
+    }
+
+    .git-folder-icon {
+      color: var(--accent);
+      flex-shrink: 0;
+    }
+
+    .git-repo-name {
+      font-size: 13px;
+      font-weight: 500;
+      flex: 1;
+      min-width: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .git-change-count {
+      background: rgba(255, 149, 0, 0.15);
+      color: #ff9f0a;
+      font-size: 11px;
+      font-weight: 600;
+      min-width: 20px;
+      height: 20px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 0 6px;
+      border-radius: 10px;
+      flex-shrink: 0;
+    }
+
+    .git-clean-label {
+      font-size: 11px;
+      font-weight: 500;
+      color: #32d74b;
+      opacity: 0.7;
+    }
+
+    .btn-repo-diff {
+      border: none;
+      background: rgba(10, 132, 255, 0.1);
+      color: var(--accent);
+      font-size: 11px;
+      font-weight: 500;
+      padding: 4px 12px;
+      border-radius: 6px;
+      cursor: pointer;
+      flex-shrink: 0;
+      font-family: inherit;
+      transition: all 0.12s;
+      opacity: 0;
+    }
+
+    .git-repo-header:hover .btn-repo-diff {
+      opacity: 1;
+    }
+
+    .btn-repo-diff:hover {
+      background: rgba(10, 132, 255, 0.2);
+    }
+
+    /* ── File list ── */
+    .git-file-list {
+      border-top: 1px solid rgba(255,255,255,0.05);
+      padding: 4px 0;
+    }
+
+    .git-file-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 5px 14px 5px 36px;
+      cursor: pointer;
+      transition: background 0.1s;
+      border-radius: 0;
+    }
+
+    .git-file-row:hover {
+      background: rgba(255, 255, 255, 0.04);
+    }
+
+    .git-file-status {
+      font-family: "SF Mono", Menlo, monospace;
+      font-size: 10px;
+      font-weight: 700;
+      width: 18px;
+      height: 18px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 4px;
+      flex-shrink: 0;
+      letter-spacing: 0;
+    }
+
+    .git-file-status.modified { background: rgba(255, 149, 0, 0.12); color: #ff9f0a; }
+    .git-file-status.added    { background: rgba(50, 215, 75, 0.12); color: #32d74b; }
+    .git-file-status.deleted  { background: rgba(255, 69, 58, 0.12); color: #ff453a; }
+    .git-file-status.renamed  { background: rgba(10, 132, 255, 0.12); color: #0a84ff; }
+    .git-file-status.untracked { background: rgba(152, 152, 157, 0.12); color: #98989d; }
+
+    .git-file-name {
+      flex: 1;
+      min-width: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      font-family: "SF Mono", Menlo, monospace;
+      font-size: 12px;
+      color: var(--text);
+    }
+
+    .git-file-action {
+      color: var(--accent);
+      font-size: 11px;
+      font-weight: 500;
+      opacity: 0;
+      transition: opacity 0.1s;
+      flex-shrink: 0;
+    }
+
+    .git-file-row:hover .git-file-action {
+      opacity: 1;
+    }
+
+    .git-no-changes {
+      padding: 10px 36px;
+      color: var(--text-tertiary);
+      font-size: 12px;
+      font-style: italic;
+    }
+
+    .git-file-row.active {
+      background: rgba(10, 132, 255, 0.06);
+    }
+
+    .git-file-row.active .git-file-action {
+      opacity: 1;
+      color: var(--text-secondary);
+    }
+
+    .btn-repo-diff.active {
+      opacity: 1 !important;
+      background: rgba(255,255,255,0.08);
+      color: var(--text-secondary);
+    }
+
+    /* ── Inline diff ── */
+    .git-inline-diff {
+      border-top: 1px solid rgba(255,255,255,0.06);
+      background: #161618;
+      overflow-x: auto;
+      overflow-y: hidden;
+    }
+
+    .git-inline-diff.repo-level {
+      border-top: 1px solid rgba(255,255,255,0.08);
+      margin-top: 2px;
+    }
+
+    .git-inline-diff-loading {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 14px 36px;
+      color: var(--text-tertiary);
+      font-size: 12px;
+    }
+
+    .git-inline-diff-empty {
+      padding: 14px 36px;
+      color: var(--text-tertiary);
+      font-size: 12px;
+      font-style: italic;
+    }
+
+    /* ── diff2html dark theme (GitHub-inspired) ── */
+    :root {
+      --d2h-bg-color: #161618;
+      --d2h-border-color: rgba(255,255,255,0.06);
+      --d2h-dim-color: #6e7681;
+      --d2h-line-border-color: rgba(255,255,255,0.04);
+      --d2h-file-header-bg-color: #1c1c1e;
+      --d2h-file-header-border-color: rgba(255,255,255,0.08);
+      --d2h-empty-placeholder-bg-color: #161618;
+      --d2h-empty-placeholder-border-color: rgba(255,255,255,0.04);
+      --d2h-selected-color: rgba(10,132,255,0.15);
+      --d2h-ins-bg-color: rgba(46,160,67,0.20);
+      --d2h-ins-border-color: rgba(46,160,67,0.30);
+      --d2h-ins-highlight-bg-color: rgba(46,160,67,0.50);
+      --d2h-ins-label-color: #3fb950;
+      --d2h-del-bg-color: rgba(248,81,73,0.20);
+      --d2h-del-border-color: rgba(248,81,73,0.30);
+      --d2h-del-highlight-bg-color: rgba(248,81,73,0.50);
+      --d2h-del-label-color: #f85149;
+      --d2h-change-del-color: rgba(210,153,34,0.15);
+      --d2h-change-ins-color: rgba(46,160,67,0.15);
+      --d2h-info-bg-color: rgba(56,139,253,0.12);
+      --d2h-info-border-color: rgba(56,139,253,0.25);
+      --d2h-change-label-color: #d29922;
+      --d2h-moved-label-color: #388bfd;
+    }
+
+    /* Additional diff2html tweaks for our dark theme */
+    .d2h-wrapper {
+      background: transparent;
+    }
+
+    .d2h-file-wrapper {
+      border-radius: 0;
+      margin-bottom: 0;
+      border: none;
+    }
+
+    .d2h-diff-table {
+      font-family: "SF Mono", Menlo, monospace;
+      font-size: 12px;
+      border-collapse: collapse;
+      border-spacing: 0;
+      width: 100%;
+    }
+
+    .d2h-code-line-ctn {
+      font-family: "SF Mono", Menlo, monospace;
+      font-size: 12px;
+      color: #e6edf3;
+    }
+
+    .d2h-file-header {
+      font-family: "SF Mono", Menlo, monospace;
+      font-size: 12px;
+      color: #e6edf3;
+      background: #1c1c1e !important;
+      border-bottom: 1px solid rgba(255,255,255,0.08);
+    }
+
+    /* Line numbers: table-cell flow, no sticky (prevents ghost artifacts) */
+    .d2h-code-linenumber {
+      cursor: default;
+      position: static !important;
+      display: table-cell !important;
+      width: auto !important;
+      min-width: 40px;
+      padding: 0 8px !important;
+      background: #161618 !important;
+      color: #484f58;
+      font-size: 11px;
+      text-align: right;
+      border-right: 1px solid rgba(255,255,255,0.06);
+      vertical-align: top;
+    }
+
+    /* Colored line-number gutters per diff type */
+    .d2h-ins .d2h-code-linenumber {
+      background: rgba(46,160,67,0.12) !important;
+      color: #56d364;
+    }
+
+    .d2h-del .d2h-code-linenumber {
+      background: rgba(248,81,73,0.12) !important;
+      color: #f47067;
+    }
+
+    .d2h-info .d2h-code-linenumber {
+      background: rgba(56,139,253,0.08) !important;
+      color: #6cb6ff;
+    }
+
+    /* Content lines */
+    .d2h-code-line {
+      padding: 0 12px !important;
+    }
+
+    /* Insertion and deletion line backgrounds */
+    .d2h-ins {
+      background: rgba(46,160,67,0.15) !important;
+      border-color: rgba(46,160,67,0.20) !important;
+    }
+
+    .d2h-del {
+      background: rgba(248,81,73,0.15) !important;
+      border-color: rgba(248,81,73,0.20) !important;
+    }
+
+    /* Word-level highlights */
+    .d2h-ins .d2h-code-line-ctn ins,
+    .d2h-code-line-ctn .d2h-ins {
+      background: rgba(46,160,67,0.40) !important;
+      color: #7ee787;
+      text-decoration: none;
+      border-radius: 2px;
+      padding: 1px 0;
+    }
+
+    .d2h-del .d2h-code-line-ctn del,
+    .d2h-code-line-ctn .d2h-del {
+      background: rgba(248,81,73,0.40) !important;
+      color: #ffa198;
+      text-decoration: none;
+      border-radius: 2px;
+      padding: 1px 0;
+    }
+
+    /* Info/hunk header line styling */
+    .d2h-info {
+      color: #8b949e;
+      background: rgba(56,139,253,0.08) !important;
+    }
+
+    .d2h-info .d2h-code-line-ctn {
+      color: #6cb6ff;
+      font-style: italic;
+    }
+
+    .d2h-file-collapse,
+    .d2h-file-switch {
+      display: none;
+    }
+
+    .d2h-tag {
+      background: rgba(56,139,253,0.15);
+      color: #6cb6ff;
+      border: 1px solid rgba(56,139,253,0.25);
+      border-radius: 4px;
+      font-size: 10px;
+      padding: 1px 6px;
+    }
+
+    .d2h-file-name {
+      color: #e6edf3;
+    }
+
+    /* Make sure diff text is readable */
+    .d2h-code-line del,
+    .d2h-code-line ins {
+      text-decoration: none;
+    }
+
+    /* Context lines (unchanged) */
+    .d2h-cntx {
+      background: transparent !important;
+    }
+
+    .d2h-cntx .d2h-code-linenumber {
+      background: #161618 !important;
+    }
+
+    /* ── Scrollbar ── */
+    ::-webkit-scrollbar { width: 4px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 2px; }
+    ::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.2); }
+  </style>
+</head>
+<body>
+  <div class="app-layout">
+    <!-- Sidebar -->
+    <nav class="sidebar" role="navigation" aria-label="Projects">
+      <div class="drag-region"></div>
+
+      <div class="header">
+        <h1>Projects</h1>
+      </div>
+
+      <ul class="project-list" id="project-list" role="listbox" aria-label="Project list"></ul>
+
+      <div class="empty-state" id="empty-state" hidden>
+        <svg viewBox="0 0 24 24">
+          <rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect>
+          <line x1="8" y1="21" x2="16" y2="21"></line>
+          <line x1="12" y1="17" x2="12" y2="21"></line>
+        </svg>
+        <p>No projects yet.<br>Add one to get started.</p>
+      </div>
+
+      <div class="bottom-bar">
+        <button class="add-btn" id="btn-add">+ New Project</button>
+      </div>
+    </nav>
+
+    <!-- Terminal area -->
+    <main class="terminal-area" id="terminal-area" role="main">
+      <div class="terminal-tabs" id="terminal-tabs"></div>
+      <div class="terminal-container" id="terminal-container">
+        <div class="terminal-empty-state" id="terminal-empty-state">
+          Select a project to open terminals
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <!-- Add Project Dialog -->
+  <dialog id="add-dialog">
+    <h2>New Project</h2>
+    <label>Name
+      <input id="add-name" placeholder="My Project" required>
+    </label>
+    <label>Path
+      <div class="path-row">
+        <input id="add-path" placeholder="~/code/my-project" required>
+        <button type="button" class="btn" id="btn-browse">Browse</button>
+      </div>
+    </label>
+    <h3>Terminals</h3>
+    <div id="add-terminals-container"></div>
+    <button type="button" class="btn ghost btn-add-term" id="btn-add-terminal-new">+ Terminal</button>
+    <div class="error-msg" id="add-error"></div>
+    <div class="dialog-actions">
+      <button type="button" class="btn" id="add-cancel">Cancel</button>
+      <button type="button" class="btn primary" id="add-submit">Add</button>
+    </div>
+  </dialog>
+
+  <!-- Edit Project Dialog -->
+  <dialog id="edit-dialog">
+    <h2>Edit <span id="edit-project-name"></span></h2>
+    <div id="edit-terminals-container"></div>
+    <button type="button" class="btn ghost btn-add-term" id="btn-add-terminal">+ Terminal</button>
+    <div class="error-msg" id="edit-error"></div>
+    <div class="dialog-actions">
+      <button type="button" class="btn" id="edit-cancel">Cancel</button>
+      <button type="button" class="btn primary" id="edit-submit">Save</button>
+    </div>
+  </dialog>
+
+  <!-- Confirm Remove Dialog -->
+  <dialog id="remove-dialog">
+    <h2>Remove Project</h2>
+    <p style="color: var(--text-secondary); line-height: 1.5; font-size: 13px;">
+      Remove "<span id="remove-project-name" style="font-weight: 600; color: var(--text);"></span>"?
+    </p>
+    <div class="dialog-actions">
+      <button type="button" class="btn" id="remove-cancel">Cancel</button>
+      <button type="button" class="btn danger" id="remove-confirm">Remove</button>
+    </div>
+  </dialog>
+
+  <script type="module" src="dist/renderer.bundle.js"></script>
+</body>
+</html>
