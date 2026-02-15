@@ -598,6 +598,7 @@
       flex: 1;
       position: relative;
       overflow: hidden;
+      padding: 12px;
     }
 
     .terminal-pane {
@@ -605,6 +606,7 @@
       inset: 0;
       display: none;
       flex-direction: row;
+      gap: 12px;
     }
 
     .terminal-pane.active {
@@ -620,7 +622,7 @@
 
     .split-terminal .xterm {
       height: 100%;
-      padding: 4px;
+      padding: 8px;
     }
 
     .split-terminal.focused::after {
@@ -680,6 +682,10 @@
       justify-content: center;
       color: var(--text-tertiary);
       font-size: 13px;
+    }
+
+    .terminal .xterm-viewport {
+      background-color: rgb(28, 28, 30);
     }
 
     /* ── Dialogs ── */
