@@ -1,5 +1,14 @@
 # Changelog
 
+## [3.3.1] - 2026-02-15
+
+### Fixed
+
+- **Sandbox disabled**: Changed `sandbox: true` to `sandbox: false` in BrowserWindow webPreferences to prevent restricted terminal behavior
+- **Git panel state leak**: `activateGroup()` now clears `gitPanelProject` state when switching to a terminal tab, fixing broken tab rendering after using the git panel
+- **Fit deduplication bug**: Replaced single `pendingFitGroupId` string with a Set, allowing multiple groups to have pending fit operations simultaneously without dropping fits
+- **Silent terminal creation failures**: Added error handling for `openStandaloneTerminal()` calls to log failures instead of silently swallowing them
+
 ## [3.3.0] - 2026-02-14
 
 ### Fixed
