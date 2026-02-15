@@ -155,6 +155,10 @@
       background: var(--bg-selected);
     }
 
+    .project-item.selected .project-row {
+      background: var(--bg-hover);
+    }
+
     /* ── Chevron ── */
     .project-chevron {
       width: 14px;
@@ -295,6 +299,20 @@
     .terminal-sub-item:hover .terminal-sub-action {
       opacity: 1;
       color: var(--accent);
+    }
+
+    .terminal-sub-item.focused {
+      background: var(--bg-hover);
+    }
+
+    .terminal-sub-item.focused .terminal-sub-icon {
+      opacity: 1;
+      color: var(--accent);
+    }
+
+    .terminal-sub-item.focused .terminal-sub-name {
+      color: var(--text);
+      font-weight: 500;
     }
 
     .terminal-sub-item.running .terminal-sub-name {

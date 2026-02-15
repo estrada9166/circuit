@@ -1,5 +1,17 @@
 # Changelog
 
+## [3.3.3] - 2026-02-15
+
+### Added
+
+- **Selected project highlight in sidebar**: The project in the left sidebar now shows a hover-like highlight when its corresponding tab is selected at the top
+
+## [3.3.2] - 2026-02-15
+
+### Added
+
+- **Focused terminal highlight in sidebar**: The terminal sub-item in the left panel now highlights when it corresponds to the currently focused session, with accent-colored icon and bold name
+
 ## [3.3.1] - 2026-02-15
 
 ### Fixed
