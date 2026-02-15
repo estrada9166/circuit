@@ -135,7 +135,9 @@ async function init(): Promise<void> {
 
   // New Terminal button
   document.getElementById('btn-new-terminal')?.addEventListener('click', () => {
-    window.api.openStandaloneTerminal();
+    window.api.openStandaloneTerminal().catch((err: unknown) => {
+      console.error('Failed to open terminal:', err);
+    });
   });
 
   // ── Shortcut popup (shown when shortcuts button is clicked) ──
@@ -202,7 +204,9 @@ async function init(): Promise<void> {
     // Cmd/Ctrl+T: open standalone terminal
     if (e.key === 't') {
       e.preventDefault();
-      window.api.openStandaloneTerminal();
+      window.api.openStandaloneTerminal().catch((err: unknown) => {
+        console.error('Failed to open terminal:', err);
+      });
     }
     // Cmd/Ctrl+P: open command palette
     if (e.key === 'p') {

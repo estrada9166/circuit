@@ -11,6 +11,7 @@ import {
   projects,
   setActiveGroupId,
   setFocusedSessionId,
+  setGitPanelProject,
   setActiveProjects,
   nextGroupId,
   TerminalSession,
@@ -214,14 +215,14 @@ export function createTabGroup(session: TerminalSession): TabGroup {
   return group;
 }
 
-let pendingFitGroupId: string | null = null;
+const pendingFitGroupIds = new Set<string>();
 
 export function fitGroupSessions(group: TabGroup): void {
   // Deduplicate: only one RAF per group at a time
-  if (pendingFitGroupId === group.id) return;
-  pendingFitGroupId = group.id;
+  if (pendingFitGroupIds.has(group.id)) return;
+  pendingFitGroupIds.add(group.id);
   requestAnimationFrame(() => {
-    pendingFitGroupId = null;
+    pendingFitGroupIds.delete(group.id);
     for (const sid of group.sessionIds) {
       const s = sessions.get(sid);
       if (s) {
@@ -235,7 +236,10 @@ export function fitGroupSessions(group: TabGroup): void {
 export function activateGroup(groupId: string): void {
   setActiveGroupId(groupId);
 
-  // Always remove the git pane if present (ensures clean switch)
+  // Fully clear git panel state so renderTerminalTabs renders terminal tabs
+  if (gitPanelProject) {
+    setGitPanelProject(null);
+  }
   const gitPane = document.getElementById('git-pane');
   if (gitPane) gitPane.remove();
 
