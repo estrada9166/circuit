@@ -1,4 +1,4 @@
-import { projects, activeProjects, sessions, tabGroups, focusedSessionId, notifiedSessionIds, expandedProjectNames, runningTerminalNames } from './state';
+import { projects, activeProjects, activeGroupId, sessions, tabGroups, focusedSessionId, notifiedSessionIds, expandedProjectNames, runningTerminalNames } from './state';
 import { esc, initials, shortenPath } from './utils';
 import type { Project } from '../types';
 
@@ -151,6 +151,11 @@ export function renderSidebar(): void {
     const isActive = activeProjects.includes(project.name);
     if (isActive) li.classList.add('active');
 
+    const activeGroup = activeGroupId ? tabGroups.get(activeGroupId) : null;
+    if (activeGroup && activeGroup.projectName === project.name) {
+      li.classList.add('selected');
+    }
+
     const isExpanded = expandedProjectNames.has(project.name);
     if (isExpanded) li.classList.add('expanded');
 
@@ -198,9 +203,13 @@ export function renderSidebar(): void {
         const termHasNotification = projectSessions.some(
           s => s.terminalName === term.name && notifiedSessionIds.has(s.id)
         );
+        const isFocused = isRunning && projectSessions.some(
+          s => s.terminalName === term.name && s.id === focusedSessionId
+        );
         const subItem = document.createElement('li');
         subItem.className = 'terminal-sub-item'
           + (isRunning ? ' running' : '')
+          + (isFocused ? ' focused' : '')
           + (termHasNotification ? ' has-notification' : '');
         subItem.innerHTML = `
           <span class="terminal-sub-icon">${SVG_TERMINAL}</span>
