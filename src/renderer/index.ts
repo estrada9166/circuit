@@ -25,7 +25,7 @@ import {
   closeGroup,
 } from './terminal-ui';
 import { initGitPanel, openGitPanel, closeGitPanel, renderGitTab, setTerminalCallbacks } from './git-panel';
-import { initDialogs, showEditDialog, showRemoveDialog, setDialogCallbacks } from './dialogs';
+import { initDialogs, showEditDialog, showRemoveDialog } from './dialogs';
 import { initCommandPalette, openCommandPalette } from './command-palette';
 import type { PtyCreatedEvent } from '../types';
 
@@ -72,7 +72,6 @@ async function init(): Promise<void> {
       renderSidebar();
     },
   });
-  setDialogCallbacks(renderSidebar);
 
   // Load initial data in parallel
   const [loadedProjects, active] = await Promise.all([
