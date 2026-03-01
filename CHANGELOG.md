@@ -25,6 +25,7 @@
 
 ### Fixed
 
+- **Empty state persistence**: The "No projects yet" message now properly hides after creating the first project
 - **Cmd+K clear terminal**: Cmd+K now correctly clears the terminal scrollback buffer
 - **Shortcut popup on Cmd hold**: Removed the behavior where holding Cmd/Ctrl would show the shortcuts popup — it now only appears when the Shortcuts button is clicked
 

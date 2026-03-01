@@ -1646,6 +1646,9 @@
     ::-webkit-scrollbar-track { background: transparent; }
     ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 2px; }
     ::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.2); }
+
+    /* Make the HTML `hidden` attribute reliable even when elements have explicit display rules. */
+    [hidden] { display: none !important; }
   </style>
 </head>
 <body>

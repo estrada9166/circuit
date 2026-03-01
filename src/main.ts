@@ -240,8 +240,10 @@ function getProjectPathForRepo(repoPath: string): string | null {
 // ---- App lifecycle ----
 
 app.whenReady().then(() => {
-  createMenu();
+  // Load persisted projects before the renderer boots so initial `store:load`
+  // doesn't race and render the empty state incorrectly.
   store.load();
+  createMenu();
 
   // ---- Platform handlers (synchronous) ----
   ipcMain.on(IPC.GET_HOMEDIR, (event) => {

@@ -11,15 +11,9 @@ import {
   setProjects,
 } from './state';
 import { esc } from './utils';
+import { renderSidebar } from './sidebar';
 import type { Project, TerminalConfig } from '../types';
 
-// ---- Callback wiring (avoids circular deps) ----
-
-let renderSidebarFn: (() => void) | null = null;
-
-export function setDialogCallbacks(renderSidebar: () => void): void {
-  renderSidebarFn = renderSidebar;
-}
 
 // ---- DOM refs (initialized in initDialogs) ----
 
@@ -169,7 +163,7 @@ function rerenderEditTerminals(): void {
 async function reloadAndRender(): Promise<void> {
   const loaded = await window.api.loadProjects();
   setProjects(loaded);
-  if (renderSidebarFn) renderSidebarFn();
+  renderSidebar();
 }
 
 // ---- Exported: initialize all dialogs ----
