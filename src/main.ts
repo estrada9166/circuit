@@ -376,8 +376,8 @@ app.whenReady().then(() => {
   // ---- Terminal IPC ----
 
   ipcMain.handle(IPC.TERMINAL_OPEN_STANDALONE, () => {
-    const id = ptyManager.create('Terminal', 'shell', os.homedir(), []);
-    const event = { id, projectName: 'Terminal', terminalName: 'shell' };
+    const id = ptyManager.create('', 'shell', os.homedir(), []);
+    const event = { id, projectName: '', terminalName: 'shell' };
     mainWindow?.webContents.send(IPC.TERMINAL_CREATED, event);
     return event;
   });

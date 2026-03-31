@@ -16,6 +16,7 @@ interface PaletteItem {
   terminalName?: string;
   hasNotification?: boolean;
   isCurrent?: boolean;
+  isTemporary?: boolean;
 }
 
 function fuzzyMatch(query: string, target: string): boolean {
@@ -81,6 +82,26 @@ function getFilteredItems(query: string): PaletteItem[] {
     }
   }
 
+  // Temporary terminals (standalone, no project)
+  let tempCounter = 0;
+  for (const [id, group] of tabGroups) {
+    if (group.projectName !== '') continue;
+    tempCounter++;
+    const label = `Terminal ${tempCounter}`;
+    if (!query || fuzzyMatch(query, label) || fuzzyMatch(query, 'temporary')) {
+      const hasNotification = group.sessionIds.some(sid => notifiedSessionIds.has(sid));
+      items.push({
+        type: 'group',
+        id,
+        label,
+        projectName: '',
+        hasNotification,
+        isCurrent: id === activeGroupId,
+        isTemporary: true,
+      });
+    }
+  }
+
   return items;
 }
 
@@ -92,14 +113,26 @@ function renderList(): void {
   if (selectedIndex >= items.length) selectedIndex = Math.max(0, items.length - 1);
 
   list.innerHTML = '';
+  let tempSeparatorAdded = false;
   items.forEach((item, i) => {
+    if (item.isTemporary && !tempSeparatorAdded) {
+      tempSeparatorAdded = true;
+      const sep = document.createElement('div');
+      sep.className = 'command-palette-separator-group';
+      sep.textContent = 'Temporary';
+      list!.appendChild(sep);
+    }
+
     const el = document.createElement('div');
     el.className = 'command-palette-item';
     if (item.isCurrent) el.classList.add('current');
     if (i === selectedIndex) el.classList.add('selected');
 
     let labelHtml: string;
-    if (item.type === 'group') {
+    if (item.isTemporary) {
+      labelHtml = `<span class="command-palette-terminal">${esc(item.label)}</span>`;
+      if (item.hasNotification) labelHtml += '<span class="command-palette-notification"></span>';
+    } else if (item.type === 'group') {
       const colonIdx = item.label.indexOf(':');
       if (colonIdx !== -1) {
         const project = item.label.substring(0, colonIdx);

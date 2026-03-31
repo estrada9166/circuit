@@ -148,6 +148,24 @@
       opacity: 1;
     }
 
+    /* ── Temporary section ── */
+    .temporary-section {
+      list-style: none;
+      margin-top: 4px;
+      border-top: 1px solid rgba(255, 255, 255, 0.06);
+      padding-top: 4px;
+    }
+
+    .temporary-header {
+      font-size: 10px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.6px;
+      color: var(--text-tertiary);
+      padding: 4px 12px 2px;
+      font-style: italic;
+    }
+
     /* ── Terminal sub-list ── */
     .terminal-sub-list {
       list-style: none;
@@ -1495,6 +1513,17 @@
       margin: 0 2px;
     }
 
+    .command-palette-separator-group {
+      padding: 6px 12px 4px;
+      font-size: 10px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.6px;
+      color: var(--text-tertiary);
+      border-top: 1px solid rgba(255, 255, 255, 0.06);
+      margin-top: 2px;
+    }
+
     .command-palette-terminal {
       color: var(--text);
     }
@@ -1646,7 +1675,8 @@
       </div>
 
       <div class="bottom-bar">
-<button class="add-btn" id="btn-add">+ New Project</button>
+        <button class="add-btn" id="btn-new-terminal">+ New Terminal</button>
+        <button class="add-btn" id="btn-add">+ New Project</button>
         <button class="shortcuts-btn" id="btn-shortcuts" title="Keyboard Shortcuts">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="M6 8h.01M10 8h.01M14 8h.01M18 8h.01M8 12h.01M12 12h.01M16 12h.01M8 16h8"/></svg>
           Shortcuts

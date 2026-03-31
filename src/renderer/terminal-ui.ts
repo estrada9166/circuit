@@ -204,7 +204,7 @@ export function createTabGroup(session: TerminalSession): TabGroup {
   const group: TabGroup = {
     id: gid,
     projectName: session.projectName,
-    label: `${session.projectName}: ${session.terminalName}`,
+    label: session.projectName ? `${session.projectName}: ${session.terminalName}` : 'Terminal',
     sessionIds: [session.id],
     element: pane,
     color: project?.color,
@@ -458,7 +458,8 @@ export function renderTerminalTabs(): void {
   terminalTabs.innerHTML = '';
   terminalTabs.setAttribute('role', 'tablist');
 
-  const groupEntries = [...tabGroups.entries()];
+  const activeProjectName = activeGroupId ? tabGroups.get(activeGroupId)?.projectName : undefined;
+  const groupEntries = [...tabGroups.entries()].filter(([, g]) => g.projectName === activeProjectName);
 
   for (const [groupId, group] of groupEntries) {
     const isActive = groupId === activeGroupId;

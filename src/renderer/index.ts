@@ -170,6 +170,13 @@ async function init(): Promise<void> {
   }));
 
 
+  // New Terminal button
+  document.getElementById('btn-new-terminal')?.addEventListener('click', () => {
+    window.api.openStandaloneTerminal().catch((err: unknown) => {
+      console.error('Failed to open terminal:', err);
+    });
+  });
+
   // ── Shortcut popup (shown when shortcuts button is clicked) ──
   const shortcutOverlay = document.createElement('div');
   shortcutOverlay.className = 'shortcut-overlay';

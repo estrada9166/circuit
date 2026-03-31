@@ -101,19 +101,14 @@ function renderTerminalEntries(
                placeholder="Terminal name (e.g. server)">
         <button type="button" class="btn danger btn-remove-terminal">&times;</button>
       </div>
-      <div class="color-swatches color-swatches-sm terminal-color-swatches"></div>
       <textarea class="terminal-commands-input" rows="2"
                 placeholder="Commands (one per line)">${esc(terminal.commands.join('\n'))}</textarea>
     `;
 
-    const swatchContainer = div.querySelector('.terminal-color-swatches') as HTMLElement;
     const nameInput = div.querySelector('.terminal-name-input') as HTMLInputElement;
     const cmdsInput = div.querySelector('.terminal-commands-input') as HTMLTextAreaElement;
     const removeBtn = div.querySelector('.btn-remove-terminal') as HTMLButtonElement;
 
-    renderColorSwatches(swatchContainer, terminal.color, (c) => {
-      terminals[index].color = c;
-    }, true);
     nameInput.addEventListener('input', () => {
       terminals[index].name = nameInput.value.trim();
     });

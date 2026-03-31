@@ -381,4 +381,34 @@ export function renderSidebar(): void {
 
     list.appendChild(li);
   });
+
+  // Temporary terminals section (standalone terminals with no project)
+  const temporaryGroups = [...tabGroups.values()].filter(g => g.projectName === '');
+  if (temporaryGroups.length > 0) {
+    const section = document.createElement('li');
+    section.className = 'temporary-section';
+    section.innerHTML = `<div class="temporary-header">Temporary</div>`;
+
+    const subList = document.createElement('ul');
+    subList.className = 'terminal-sub-list';
+
+    for (const group of temporaryGroups) {
+      const isActive = activeGroupId ? tabGroups.get(activeGroupId)?.projectName === '' && group.id === activeGroupId : false;
+      const item = document.createElement('li');
+      item.className = 'terminal-sub-item' + (isActive ? ' focused' : '');
+      item.innerHTML = `
+        <span class="terminal-sub-icon">${SVG_TERMINAL}</span>
+        <span class="terminal-sub-name">${esc(group.label)}</span>
+      `;
+      item.addEventListener('click', () => {
+        if (!callbacks) return;
+        callbacks.closeGitPanel();
+        callbacks.activateGroup(group.id);
+      });
+      subList.appendChild(item);
+    }
+
+    section.appendChild(subList);
+    list.appendChild(section);
+  }
 }
