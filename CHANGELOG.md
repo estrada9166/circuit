@@ -1,5 +1,21 @@
 # Changelog
 
+## [3.4.1] - 2026-02-18
+
+### Added
+
+- **Git branch in sidebar**: Each project in the sidebar now shows the current git branch name below the project title.
+
+## [3.4.0] - 2026-02-18
+
+### Changed
+
+- **No duplicate terminal instances**: Clicking a terminal in the sidebar that is already open now focuses it directly instead of opening a new instance. The "+" button still opens a new tab.
+- **Projects expanded by default**: All projects with configured terminals are now expanded in the sidebar on startup, showing their terminal list immediately.
+- **Removed "Projects" header title**: The "Projects" label above the project list has been removed for a cleaner sidebar.
+- **Folder icon for projects**: Project icons now show a folder SVG instead of text initials, and the terminal count below the project name has been removed (path is always shown instead).
+- **Removed "Run All" link**: The "Run All" option at the bottom of each terminal sub-list has been removed.
+
 ## [3.3.3] - 2026-02-15
 
 ### Added

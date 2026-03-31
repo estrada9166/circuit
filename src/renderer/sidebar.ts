@@ -1,5 +1,5 @@
-import { projects, activeProjects, activeGroupId, sessions, tabGroups, focusedSessionId, notifiedSessionIds, expandedProjectNames, runningTerminalNames } from './state';
-import { esc, initials, shortenPath } from './utils';
+import { projects, activeProjects, activeGroupId, sessions, tabGroups, focusedSessionId, notifiedSessionIds, collapsedProjectNames, runningTerminalNames, projectBranches } from './state';
+import { esc } from './utils';
 import type { Project } from '../types';
 
 // ---- Callback types (avoids circular deps) ----
@@ -68,9 +68,11 @@ const SVG_REMOVE = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" 
 
 const SVG_CHEVRON = '<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>';
 
-const SVG_TERMINAL = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></svg>';
+const SVG_FOLDER_CLOSED = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z"/></svg>';
 
-const SVG_PLAY = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"/></svg>';
+const SVG_FOLDER_OPEN = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 14 1.5-2.9A2 2 0 0 1 9.24 10H20a2 2 0 0 1 1.94 2.5l-1.54 6a2 2 0 0 1-1.95 1.5H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h3.9a2 2 0 0 1 1.69.9l.81 1.2a2 2 0 0 0 1.67.9H18a2 2 0 0 1 2 2v2"/></svg>';
+
+const SVG_TERMINAL = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></svg>';
 
 const SVG_SMALL_PLUS = '<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>';
 
@@ -122,8 +124,8 @@ export function renderSidebar(): void {
 
   // Prune stale state for removed projects
   const projectNames = new Set(projects.map(p => p.name));
-  for (const name of expandedProjectNames) {
-    if (!projectNames.has(name)) expandedProjectNames.delete(name);
+  for (const name of collapsedProjectNames) {
+    if (!projectNames.has(name)) collapsedProjectNames.delete(name);
   }
   for (const name of runningTerminalNames.keys()) {
     if (!projectNames.has(name)) runningTerminalNames.delete(name);
@@ -156,14 +158,9 @@ export function renderSidebar(): void {
       li.classList.add('selected');
     }
 
-    const isExpanded = expandedProjectNames.has(project.name);
+    const hasTerminals = project.terminals.length > 0;
+    const isExpanded = hasTerminals && !collapsedProjectNames.has(project.name);
     if (isExpanded) li.classList.add('expanded');
-
-    const termCount = project.terminals.length;
-    const hasTerminals = termCount > 0;
-    const meta = hasTerminals
-      ? `${termCount} terminal${termCount > 1 ? 's' : ''}`
-      : shortenPath(project.path);
 
     const running = runningTerminalNames.get(project.name) || [];
 
@@ -171,15 +168,18 @@ export function renderSidebar(): void {
     const projectSessions = sessionsByProject.get(project.name) || [];
     const hasProjectNotification = projectSessions.some(s => notifiedSessionIds.has(s.id));
 
-    const iconStyle = project.color ? ` style="background: ${esc(project.color)}; color: #fff"` : '';
+    const iconStyle = project.color ? ` style="color: ${esc(project.color)}"` : '';
+    const branch = projectBranches.get(project.name);
 
     li.innerHTML = `
       <div class="project-row">
-        ${hasTerminals ? `<div class="project-chevron${isExpanded ? ' open' : ''}">${SVG_CHEVRON}</div>` : ''}
-        <div class="project-icon"${iconStyle}>${esc(initials(project.name))}</div>
+        <div class="project-icon${hasTerminals ? ' has-terminals' : ''}"${iconStyle}>
+          ${isExpanded ? SVG_FOLDER_OPEN : SVG_FOLDER_CLOSED}
+          ${hasTerminals ? `<span class="icon-chevron${isExpanded ? ' open' : ''}">${SVG_CHEVRON}</span>` : ''}
+        </div>
         <div class="project-details">
           <div class="project-name">${esc(project.name)}</div>
-          <div class="project-meta">${esc(meta)}</div>
+          ${branch ? `<div class="project-meta">${esc(branch)}</div>` : ''}
         </div>
         ${hasProjectNotification ? '<div class="notification-indicator"></div>' : ''}
         ${isActive && !hasProjectNotification ? '<div class="active-indicator"></div>' : ''}
@@ -220,23 +220,21 @@ export function renderSidebar(): void {
           <span class="terminal-sub-action">${isRunning ? 'Focus' : 'Run'}</span>
         `;
 
-        // Click row: focus if running, launch if not
+        // Click row: focus if running (check live sessions), launch if not
         subItem.addEventListener('click', (e) => {
           if ((e.target as HTMLElement).closest('.terminal-sub-new')) return;
           if ((e.target as HTMLElement).closest('.terminal-sub-delete')) return;
           e.stopPropagation();
           if (!callbacks) return;
-          if (isRunning) {
-            const session = [...sessions.values()].find(
-              s => s.projectName === project.name && s.terminalName === term.name
-            );
-            if (session) {
-              const group = tabGroups.get(session.groupId);
-              if (group) {
-                callbacks.closeGitPanel();
-                callbacks.activateGroup(group.id);
-                callbacks.focusSession(session.id);
-              }
+          const liveSession = [...sessions.values()].find(
+            s => s.projectName === project.name && s.terminalName === term.name
+          );
+          if (liveSession) {
+            const group = tabGroups.get(liveSession.groupId);
+            if (group) {
+              callbacks.closeGitPanel();
+              callbacks.activateGroup(group.id);
+              callbacks.focusSession(liveSession.id);
             }
           } else {
             callbacks.openSingleTerminal(project.name, term.name, false);
@@ -260,33 +258,20 @@ export function renderSidebar(): void {
         subList.appendChild(subItem);
       }
 
-      // "Run All" button
-      const runAllItem = document.createElement('li');
-      runAllItem.className = 'terminal-sub-item run-all';
-      runAllItem.innerHTML = `
-        <span class="terminal-sub-icon">${SVG_PLAY}</span>
-        <span class="terminal-sub-name">Run All</span>
-      `;
-      runAllItem.addEventListener('click', (e) => {
-        e.stopPropagation();
-        if (callbacks) window.api.openProject(project.name);
-      });
-      subList.appendChild(runAllItem);
-
       li.appendChild(subList);
     }
 
-    // Chevron click: toggle expand/collapse terminal list
-    const chevronEl = li.querySelector('.project-chevron');
-    if (chevronEl) {
-      chevronEl.addEventListener('click', (e) => {
+    // Folder icon click: toggle expand/collapse terminal list
+    if (hasTerminals) {
+      const iconEl = li.querySelector('.project-icon')!;
+      iconEl.addEventListener('click', (e) => {
         e.stopPropagation();
         if (!callbacks) return;
-        if (expandedProjectNames.has(project.name)) {
-          expandedProjectNames.delete(project.name);
-        } else {
-          expandedProjectNames.add(project.name);
+        if (collapsedProjectNames.has(project.name)) {
+          collapsedProjectNames.delete(project.name);
           callbacks.refreshRunningTerminals(project.name);
+        } else {
+          collapsedProjectNames.add(project.name);
         }
         callbacks.render();
       });
@@ -296,15 +281,8 @@ export function renderSidebar(): void {
     const projectRow = li.querySelector('.project-row')!;
     projectRow.addEventListener('click', (e) => {
       if ((e.target as HTMLElement).closest('.project-actions')) return;
-      if ((e.target as HTMLElement).closest('.project-chevron')) return;
+      if ((e.target as HTMLElement).closest('.project-icon')) return;
       if (!callbacks) return;
-
-      // Expand terminal list if project has configured terminals
-      if (hasTerminals && !expandedProjectNames.has(project.name)) {
-        expandedProjectNames.add(project.name);
-        callbacks.refreshRunningTerminals(project.name);
-        callbacks.render();
-      }
 
       // If terminals already running, focus the first one
       const existingGroup = [...tabGroups.values()].find(g => g.projectName === project.name);

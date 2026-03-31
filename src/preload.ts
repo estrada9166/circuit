@@ -60,6 +60,9 @@ const api: PreloadApi = {
   getRepoDiff: (repoPath: string) => {
     return ipcRenderer.invoke(IPC.GIT_REPO_DIFF, repoPath);
   },
+  getBranch: (projectPath: string) => {
+    return ipcRenderer.invoke(IPC.GIT_BRANCH, projectPath);
+  },
 
   // Command palette
   onOpenCommandPalette: (callback: () => void) => {

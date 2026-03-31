@@ -75,4 +75,6 @@ export function fileDiffKey(repoPath: string, filePath: string): string {
 
 export const notifiedSessionIds = new Set<string>();
 export const expandedProjectNames = new Set<string>();
+export const collapsedProjectNames = new Set<string>();
 export const runningTerminalNames = new Map<string, string[]>();
+export const projectBranches = new Map<string, string>();

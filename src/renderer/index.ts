@@ -6,6 +6,7 @@ import {
   runningTerminalNames,
   tabGroups,
   projects,
+  projectBranches,
   setProjects,
   setActiveProjects,
 } from './state';
@@ -80,7 +81,43 @@ async function init(): Promise<void> {
   ]);
   setProjects(loadedProjects);
   setActiveProjects(active);
+
+  // Pre-populate running terminal state for all projects (they're expanded by default)
+  await Promise.all(
+    loadedProjects
+      .filter(p => p.terminals.length > 0)
+      .map(async (p) => {
+        const names = await window.api.getRunningTerminals(p.name);
+        runningTerminalNames.set(p.name, names);
+      })
+  );
+
+  // Load git branch names for all projects
+  await Promise.all(
+    loadedProjects.map(async (p) => {
+      const branch = await window.api.getBranch(p.path).catch(() => null);
+      if (branch) projectBranches.set(p.name, branch);
+    })
+  );
+
   renderSidebar();
+
+  // Poll branch names every 5 seconds and re-render if anything changed
+  setInterval(async () => {
+    let changed = false;
+    await Promise.all(
+      projects.map(async (p) => {
+        const branch = await window.api.getBranch(p.path).catch(() => null);
+        const prev = projectBranches.get(p.name) ?? null;
+        if (branch !== prev) {
+          if (branch) projectBranches.set(p.name, branch);
+          else projectBranches.delete(p.name);
+          changed = true;
+        }
+      })
+    );
+    if (changed) renderSidebar();
+  }, 5000);
 
   // Set up IPC listeners with cleanup tracking
   const cleanups: (() => void)[] = [];
@@ -132,12 +169,6 @@ async function init(): Promise<void> {
     openCommandPalette();
   }));
 
-  // New Terminal button
-  document.getElementById('btn-new-terminal')?.addEventListener('click', () => {
-    window.api.openStandaloneTerminal().catch((err: unknown) => {
-      console.error('Failed to open terminal:', err);
-    });
-  });
 
   // ── Shortcut popup (shown when shortcuts button is clicked) ──
   const shortcutOverlay = document.createElement('div');

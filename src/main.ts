@@ -4,7 +4,7 @@ import * as fs from 'fs';
 import * as os from 'os';
 import { Store } from './store';
 import { PtyManager } from './terminal';
-import { findGitRepos, getFileDiff, getFullRepoDiff } from './git';
+import { findGitRepos, getFileDiff, getFullRepoDiff, getBranch } from './git';
 import { IPC } from './types';
 import type { WindowState } from './types';
 
@@ -424,6 +424,13 @@ app.whenReady().then(() => {
     const allowedRoot = getProjectPathForRepo(repoPath);
     if (!allowedRoot) throw new Error('Repository path not within any project');
     return getFileDiff(repoPath, filePath, allowedRoot);
+  });
+
+  ipcMain.handle(IPC.GIT_BRANCH, async (_, projectPath: unknown) => {
+    if (typeof projectPath !== 'string') throw new Error('Path must be a string');
+    const project = store.projects.find(p => path.resolve(p.path) === path.resolve(projectPath));
+    if (!project) throw new Error('Path does not match any project');
+    return getBranch(projectPath);
   });
 
   ipcMain.handle(IPC.GIT_REPO_DIFF, async (_, repoPath: unknown) => {

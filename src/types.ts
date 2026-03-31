@@ -93,6 +93,7 @@ export const IPC = {
   GIT_SCAN: 'git:scan',
   GIT_FILE_DIFF: 'git:fileDiff',
   GIT_REPO_DIFF: 'git:repoDiff',
+  GIT_BRANCH: 'git:branch',
 
   // Platform
   GET_HOMEDIR: 'platform:homedir',
@@ -128,6 +129,7 @@ export interface PreloadApi {
   scanGitRepos(projectPath: string): Promise<GitRepoInfo[]>;
   getFileDiff(repoPath: string, filePath: string): Promise<string>;
   getRepoDiff(repoPath: string): Promise<string>;
+  getBranch(projectPath: string): Promise<string | null>;
 
   // Command palette
   onOpenCommandPalette(callback: () => void): () => void;

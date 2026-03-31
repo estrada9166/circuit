@@ -81,6 +81,21 @@ async function getRepoStatus(repoPath: string): Promise<GitFileInfo[]> {
 }
 
 /**
+ * Get the current branch name for a git repo. Returns null if not a git repo.
+ */
+export async function getBranch(repoPath: string): Promise<string | null> {
+  try {
+    const { stdout } = await execFileAsync('git', ['rev-parse', '--abbrev-ref', 'HEAD'], {
+      cwd: repoPath,
+      timeout: 3000,
+    });
+    return stdout.trim() || null;
+  } catch {
+    return null;
+  }
+}
+
+/**
  * Get the diff for a single file. Uses execFile (no shell) to prevent injection.
  * The repoPath is validated to be within allowedRoot.
  */
