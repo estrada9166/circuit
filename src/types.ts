@@ -38,6 +38,12 @@ export interface PtyCreatedEvent {
   terminalName: string;
 }
 
+export interface LogSearchResult {
+  lineNumber: number;
+  text: string;
+  offset: number;
+}
+
 export interface GitFileInfo {
   status: string;
   file: string;
@@ -96,6 +102,12 @@ export const IPC = {
   GIT_REPO_DIFF: 'git:repoDiff',
   GIT_BRANCH: 'git:branch',
 
+  // Log
+  LOG_OPEN_EXTERNAL: 'log:openExternal',
+  LOG_READ_CHUNK: 'log:readChunk',
+  LOG_GET_SIZE: 'log:getSize',
+  LOG_SEARCH: 'log:search',
+
   // Platform
   GET_HOMEDIR: 'platform:homedir',
   OPEN_EXTERNAL: 'platform:openExternal',
@@ -132,6 +144,12 @@ export interface PreloadApi {
   getFileDiff(repoPath: string, filePath: string): Promise<string>;
   getRepoDiff(repoPath: string): Promise<string>;
   getBranch(projectPath: string): Promise<string | null>;
+
+  // Log
+  openLogFile(ptyId: string): Promise<void>;
+  readLogChunk(ptyId: string, offset: number, size: number): Promise<string>;
+  getLogSize(ptyId: string): Promise<number>;
+  searchLog(ptyId: string, query: string): Promise<LogSearchResult[]>;
 
   // Command palette
   onOpenCommandPalette(callback: () => void): () => void;

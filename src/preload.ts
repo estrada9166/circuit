@@ -65,6 +65,12 @@ const api: PreloadApi = {
     return ipcRenderer.invoke(IPC.GIT_BRANCH, projectPath);
   },
 
+  // Log
+  openLogFile: (ptyId: string) => ipcRenderer.invoke(IPC.LOG_OPEN_EXTERNAL, ptyId),
+  readLogChunk: (ptyId: string, offset: number, size: number) => ipcRenderer.invoke(IPC.LOG_READ_CHUNK, ptyId, offset, size),
+  getLogSize: (ptyId: string) => ipcRenderer.invoke(IPC.LOG_GET_SIZE, ptyId),
+  searchLog: (ptyId: string, query: string) => ipcRenderer.invoke(IPC.LOG_SEARCH, ptyId, query),
+
   // Command palette
   onOpenCommandPalette: (callback: () => void) => {
     const handler = () => callback();

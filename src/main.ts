@@ -7,6 +7,7 @@ import { PtyManager } from './terminal';
 import { findGitRepos, getFileDiff, getFullRepoDiff, getBranch } from './git';
 import { IPC } from './types';
 import type { WindowState } from './types';
+import { TerminalLogger } from './terminal-logger';
 
 const SIDEBAR_WIDTH = 280;
 const WINDOW_STATE_FILE = path.join(os.homedir(), '.iterm-projects-window.json');
@@ -14,6 +15,8 @@ const WINDOW_STATE_FILE = path.join(os.homedir(), '.iterm-projects-window.json')
 let mainWindow: BrowserWindow | null = null;
 const store = new Store();
 const ptyManager = new PtyManager();
+const logDir = path.join(app.getPath('userData'), 'terminal-logs');
+const terminalLogger = new TerminalLogger(logDir);
 
 // ---- Single instance lock ----
 const gotLock = app.requestSingleInstanceLock();
@@ -244,6 +247,8 @@ app.whenReady().then(() => {
   // doesn't race and render the empty state incorrectly.
   store.load();
   createMenu();
+  terminalLogger.cleanOldLogs(7);
+  ptyManager.setLogger(terminalLogger);
 
   // ---- Platform handlers (synchronous) ----
   ipcMain.on(IPC.GET_HOMEDIR, (event) => {
@@ -452,6 +457,33 @@ app.whenReady().then(() => {
     const allowedRoot = getProjectPathForRepo(repoPath);
     if (!allowedRoot) throw new Error('Repository path not within any project');
     return getFullRepoDiff(repoPath, allowedRoot);
+  });
+
+  // ---- Log handlers ----
+
+  ipcMain.handle(IPC.LOG_OPEN_EXTERNAL, (_, ptyId: unknown) => {
+    if (typeof ptyId !== 'string') throw new Error('PTY ID must be a string');
+    const logPath = terminalLogger.getLogPath(ptyId);
+    shell.openPath(logPath);
+  });
+
+  ipcMain.handle(IPC.LOG_READ_CHUNK, (_, ptyId: unknown, offset: unknown, size: unknown) => {
+    if (typeof ptyId !== 'string' || typeof offset !== 'number' || typeof size !== 'number') {
+      throw new Error('Invalid arguments');
+    }
+    return terminalLogger.readChunk(ptyId, offset, size);
+  });
+
+  ipcMain.handle(IPC.LOG_GET_SIZE, (_, ptyId: unknown) => {
+    if (typeof ptyId !== 'string') throw new Error('PTY ID must be a string');
+    return terminalLogger.getLogSize(ptyId);
+  });
+
+  ipcMain.handle(IPC.LOG_SEARCH, (_, ptyId: unknown, query: unknown) => {
+    if (typeof ptyId !== 'string' || typeof query !== 'string') {
+      throw new Error('Invalid arguments');
+    }
+    return terminalLogger.search(ptyId, query);
   });
 
   createWindow();

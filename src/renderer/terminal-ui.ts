@@ -18,6 +18,7 @@ import {
   TabGroup,
 } from './state';
 import { esc } from './utils';
+import { showHistoryOverlay, hideHistoryOverlay } from './history-overlay';
 
 // ---- Render callback wiring (avoids circular dependency with git-panel) ----
 
@@ -58,7 +59,7 @@ const TERMINAL_OPTIONS = {
   fontFamily: '"SF Mono", Menlo, monospace',
   cursorBlink: true,
   allowProposedApi: true,
-  scrollback: 5000,
+  scrollback: 50000,
 };
 
 function hexToRgba(hex: string, alpha: number): string {
@@ -148,7 +149,7 @@ export function makeTerminalSession(
       return false; // prevent xterm from processing any Shift+Enter event
     }
     // Let Cmd/Ctrl shortcuts bubble up to the document handler
-    if ((event.metaKey || event.ctrlKey) && ['n', 't', 'p', 'd', 'k', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(event.key)) {
+    if ((event.metaKey || event.ctrlKey) && ['n', 't', 'p', 'd', 'k', 'f', 'F', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(event.key)) {
       return false;
     }
     return true;
@@ -168,6 +169,16 @@ export function makeTerminalSession(
     window.api.terminalResize(id, cols, rows);
   });
   disposables.push(resizeDisposable);
+
+  // Scroll-to-top: show history overlay with disk-backed log
+  const scrollDisposable = terminal.onScroll(() => {
+    if (terminal.buffer.active.viewportY === 0) {
+      showHistoryOverlay(id, wrapper, () => {
+        terminal.focus();
+      });
+    }
+  });
+  disposables.push(scrollDisposable);
 
   // Click to focus this pane
   wrapper.addEventListener('mousedown', () => {

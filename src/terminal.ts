@@ -4,6 +4,7 @@ import { randomUUID } from "crypto";
 import { BrowserWindow } from "electron";
 import { IPC } from "./types";
 import type { TerminalConfig } from "./types";
+import type { TerminalLogger } from "./terminal-logger";
 
 /** Environment variables to strip from spawned PTYs */
 const FILTERED_ENV_PREFIXES = [
@@ -49,6 +50,7 @@ export class PtyManager {
   private ptys = new Map<string, ManagedPty>();
   private projectIndex = new Map<string, Set<string>>(); // projectName -> Set<ptyId>
   private window: BrowserWindow | null = null;
+  private logger: TerminalLogger | null = null;
 
   // Output batching
   private outputBuffers = new Map<string, OutputBuffer>();
@@ -60,6 +62,10 @@ export class PtyManager {
   setWindow(win: BrowserWindow): void {
     this.window = win;
     // Flush timer starts lazily when the first PTY is created
+  }
+
+  setLogger(logger: TerminalLogger): void {
+    this.logger = logger;
   }
 
   private startFlushTimer(): void {
@@ -130,6 +136,9 @@ export class PtyManager {
     // Buffer output instead of sending per-chunk
     this.outputBuffers.set(id, { data: "" });
 
+    // Start disk logging for this session
+    this.logger?.startSession(id);
+
     // Start flush timer if not running (lazy start — only when PTYs exist)
     this.startFlushTimer();
 
@@ -148,6 +157,9 @@ export class PtyManager {
             buffer.data += data;
           }
         }
+
+        // Log raw output to disk
+        this.logger?.write(id, data);
 
         // Wait for first data from shell before writing initial commands
         if (!hasReceivedData) {
@@ -183,6 +195,7 @@ export class PtyManager {
         }
         this.removePty(id);
         this.outputBuffers.delete(id);
+        this.logger?.endSession(id);
         this.stopFlushTimerIfIdle();
       }),
     );
@@ -302,6 +315,7 @@ export class PtyManager {
 
       this.removePty(id);
       this.outputBuffers.delete(id);
+      this.logger?.endSession(id);
       this.stopFlushTimerIfIdle();
     }
   }
@@ -341,6 +355,7 @@ export class PtyManager {
     this.ptys.clear();
     this.projectIndex.clear();
     this.outputBuffers.clear();
+    this.logger?.endAll();
     if (this.flushTimer) {
       clearInterval(this.flushTimer);
       this.flushTimer = null;

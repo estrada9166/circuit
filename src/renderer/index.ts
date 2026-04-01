@@ -29,6 +29,8 @@ import {
 import { initGitPanel, openGitPanel, closeGitPanel, renderGitTab, setTerminalCallbacks } from './git-panel';
 import { initDialogs, showEditDialog, showRemoveDialog } from './dialogs';
 import { initCommandPalette, openCommandPalette } from './command-palette';
+import { initLogSearch, openLogSearch } from './log-search';
+import { initHistoryOverlay } from './history-overlay';
 import type { PtyCreatedEvent } from '../types';
 
 async function init(): Promise<void> {
@@ -38,6 +40,8 @@ async function init(): Promise<void> {
   initGitPanel();
   initDialogs();
   initCommandPalette(activateGroup);
+  initLogSearch();
+  initHistoryOverlay();
 
   // Wire up cross-module callbacks to avoid circular dependencies
   setRenderCallbacks(renderSidebar, renderGitTab);
@@ -197,6 +201,7 @@ async function init(): Promise<void> {
     <div class="shortcut-row"><span class="shortcut-key">\u2318 P</span><span class="shortcut-desc">Command palette</span></div>
     <div class="shortcut-row"><span class="shortcut-key">\u2318 D</span><span class="shortcut-desc">Split pane</span></div>
     <div class="shortcut-row"><span class="shortcut-key">\u2318 K</span><span class="shortcut-desc">Clear terminal</span></div>
+    <div class="shortcut-row"><span class="shortcut-key">\u2318 \u21e7 F</span><span class="shortcut-desc">Search terminal history</span></div>
   `;
   document.body.appendChild(shortcutPopup);
 
@@ -257,6 +262,12 @@ async function init(): Promise<void> {
       e.preventDefault();
       const focused = focusedSessionId;
       if (focused) splitSession(focused);
+    }
+    // Cmd/Ctrl+Shift+F: search terminal history
+    if (e.shiftKey && (e.key === 'f' || e.key === 'F')) {
+      e.preventDefault();
+      openLogSearch();
+      return;
     }
     // Cmd/Ctrl+K: clear terminal
     if (e.key === 'k') {

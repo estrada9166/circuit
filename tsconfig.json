@@ -17,6 +17,7 @@
     "src/types.ts",
     "src/store.ts",
     "src/terminal.ts",
+    "src/terminal-logger.ts",
     "src/migration.ts",
     "src/git.ts",
     "src/main.ts",

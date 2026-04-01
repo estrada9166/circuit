@@ -1,5 +1,16 @@
 # Changelog
 
+## [3.5.0] - 2026-04-01
+
+### Added
+
+- **Infinite terminal buffer**: All terminal output is now logged to disk per-session, providing effectively unlimited history.
+- **Increased scrollback**: xterm.js scrollback increased from 5,000 to 50,000 lines for deeper in-memory history.
+- **History search (Cmd+Shift+F)**: Full-text search across the entire terminal history, powered by disk-backed logs. Highlights matching results with line numbers.
+- **Show Full Log**: New command palette action to open the raw terminal log file in your system editor.
+- **History overlay**: When scrolling to the top of the terminal buffer, a seamless overlay appears showing older output loaded from disk. Supports lazy chunk loading (scroll up for more), in-overlay search (Cmd+F), and ANSI color rendering.
+- **Log cleanup**: Terminal logs older than 7 days are automatically cleaned up on app startup.
+
 ## [3.4.2] - 2026-03-31
 
 ### Changed

@@ -1,4 +1,4 @@
-import { tabGroups, activeGroupId, notifiedSessionIds, projects } from './state';
+import { tabGroups, activeGroupId, focusedSessionId, notifiedSessionIds, projects } from './state';
 import { esc } from './utils';
 import type { Project } from '../types';
 
@@ -112,6 +112,18 @@ function getFilteredItems(query: string): PaletteItem[] {
     });
   }
 
+  // Action: Show Full Log (only when a session is focused)
+  if (focusedSessionId) {
+    const logLabel = 'Show Full Log';
+    if (!query || fuzzyMatch(query, logLabel)) {
+      items.push({
+        type: 'action',
+        id: 'action:show-full-log',
+        label: logLabel,
+      });
+    }
+  }
+
   return items;
 }
 
@@ -214,6 +226,10 @@ function selectItem(item: PaletteItem): void {
     window.api.openSingleTerminal(item.projectName!, item.terminalName!);
   } else if (item.type === 'action' && item.id === 'action:new-terminal') {
     window.api.openStandaloneTerminal();
+  } else if (item.type === 'action' && item.id === 'action:show-full-log') {
+    if (focusedSessionId) {
+      window.api.openLogFile(focusedSessionId);
+    }
   }
 }
 
