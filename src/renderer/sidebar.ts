@@ -246,8 +246,11 @@ export function renderSidebar(): void {
         subItem.querySelector('.terminal-sub-split')!.addEventListener('click', (e) => {
           e.stopPropagation();
           if (!callbacks) return;
-          // Find an active group belonging to this project
-          const projectGroup = [...tabGroups.values()].find(g => g.projectName === project.name);
+          // Find the active group if it belongs to this project, otherwise fall back to the first group
+          const activeGroup = activeGroupId ? tabGroups.get(activeGroupId) : null;
+          const projectGroup = (activeGroup && activeGroup.projectName === project.name)
+            ? activeGroup
+            : [...tabGroups.values()].find(g => g.projectName === project.name);
           if (projectGroup) {
             callbacks.splitWithTerminal(projectGroup.id, project.name, term.name);
           } else {

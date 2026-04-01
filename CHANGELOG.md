@@ -11,6 +11,10 @@
 - **History overlay**: When scrolling to the top of the terminal buffer, a seamless overlay appears showing older output loaded from disk. Supports lazy chunk loading (scroll up for more), in-overlay search (Cmd+F), and ANSI color rendering.
 - **Log cleanup**: Terminal logs older than 7 days are automatically cleaned up on app startup.
 
+### Fixed
+
+- **Split button now splits the active tab**: The sidebar split button was always splitting the first terminal group for a project instead of the currently active one.
+
 ## [3.4.2] - 2026-03-31
 
 ### Changed
