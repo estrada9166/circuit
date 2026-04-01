@@ -7,6 +7,7 @@ import type { Project } from '../types';
 type OpenProjectFn = (project: Project) => void;
 type OpenGitPanelFn = (project: Project) => void;
 type SplitSessionFn = (sessionId: string) => void;
+type SplitWithTerminalFn = (groupId: string, projectName: string, terminalName: string) => void;
 type ShowEditDialogFn = (project: Project) => void;
 type ShowRemoveDialogFn = (project: Project) => void;
 type OpenSingleTerminalFn = (projectName: string, terminalName: string, prefill?: boolean) => void;
@@ -22,6 +23,7 @@ let callbacks: {
   openProject: OpenProjectFn;
   openGitPanel: OpenGitPanelFn;
   splitSession: SplitSessionFn;
+  splitWithTerminal: SplitWithTerminalFn;
   showEditDialog: ShowEditDialogFn;
   showRemoveDialog: ShowRemoveDialogFn;
   openSingleTerminal: OpenSingleTerminalFn;
@@ -58,9 +60,6 @@ function clearDropIndicators(): void {
 
 const SVG_GIT = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="18" r="3"/><circle cx="6" cy="6" r="3"/><path d="M6 21V9a9 9 0 0 0 9 9"/></svg>';
 
-const SVG_NEW_TERM = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>';
-
-const SVG_SPLIT = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="12" y1="3" x2="12" y2="21"/></svg>';
 
 const SVG_EDIT = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>';
 
@@ -77,6 +76,8 @@ const SVG_TERMINAL = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none
 const SVG_SMALL_PLUS = '<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>';
 
 const SVG_SMALL_X = '<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>';
+
+const SVG_SMALL_SPLIT = '<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="12" y1="3" x2="12" y2="21"/></svg>';
 
 // ---- Init ----
 
@@ -185,8 +186,6 @@ export function renderSidebar(): void {
         ${isActive && !hasProjectNotification ? '<div class="active-indicator"></div>' : ''}
         <div class="project-actions">
           <button class="action-btn btn-git" title="Git Status">${SVG_GIT}</button>
-          <button class="action-btn btn-new-term" title="New Terminal">${SVG_NEW_TERM}</button>
-          ${isActive ? `<button class="action-btn btn-split" title="Split Pane">${SVG_SPLIT}</button>` : ''}
           <button class="action-btn btn-edit" title="Edit">${SVG_EDIT}</button>
           <button class="action-btn danger btn-remove" title="Remove">${SVG_REMOVE}</button>
         </div>
@@ -215,6 +214,7 @@ export function renderSidebar(): void {
           <span class="terminal-sub-icon">${SVG_TERMINAL}</span>
           <span class="terminal-sub-name">${esc(term.name)}</span>
           ${termHasNotification ? '<span class="terminal-sub-notification"></span>' : (isRunning ? '<span class="terminal-sub-running"></span>' : '')}
+          <button class="terminal-sub-split" title="Open as split pane">${SVG_SMALL_SPLIT}</button>
           <button class="terminal-sub-new" title="Open new tab">${SVG_SMALL_PLUS}</button>
           <button class="terminal-sub-delete" title="Remove terminal">${SVG_SMALL_X}</button>
           <span class="terminal-sub-action">${isRunning ? 'Focus' : 'Run'}</span>
@@ -222,6 +222,7 @@ export function renderSidebar(): void {
 
         // Click row: focus if running (check live sessions), launch if not
         subItem.addEventListener('click', (e) => {
+          if ((e.target as HTMLElement).closest('.terminal-sub-split')) return;
           if ((e.target as HTMLElement).closest('.terminal-sub-new')) return;
           if ((e.target as HTMLElement).closest('.terminal-sub-delete')) return;
           e.stopPropagation();
@@ -237,6 +238,20 @@ export function renderSidebar(): void {
               callbacks.focusSession(liveSession.id);
             }
           } else {
+            callbacks.openSingleTerminal(project.name, term.name, false);
+          }
+        });
+
+        // Split button: open this terminal as a split pane in the active group for this project
+        subItem.querySelector('.terminal-sub-split')!.addEventListener('click', (e) => {
+          e.stopPropagation();
+          if (!callbacks) return;
+          // Find an active group belonging to this project
+          const projectGroup = [...tabGroups.values()].find(g => g.projectName === project.name);
+          if (projectGroup) {
+            callbacks.splitWithTerminal(projectGroup.id, project.name, term.name);
+          } else {
+            // No running group for this project — open as a new tab
             callbacks.openSingleTerminal(project.name, term.name, false);
           }
         });
@@ -301,22 +316,6 @@ export function renderSidebar(): void {
       e.stopPropagation();
       if (callbacks) callbacks.openGitPanel(project);
     });
-
-    li.querySelector('.btn-new-term')!.addEventListener('click', (e) => {
-      e.stopPropagation();
-      if (callbacks) callbacks.newTerminal(project.name);
-    });
-
-    const splitBtn = li.querySelector('.btn-split');
-    if (splitBtn) {
-      splitBtn.addEventListener('click', (e) => {
-        e.stopPropagation();
-        if (!callbacks) return;
-        const pSessions = projectSessions;
-        const target = pSessions.find(s => s.id === focusedSessionId) || pSessions[0];
-        if (target) callbacks.splitSession(target.id);
-      });
-    }
 
     li.querySelector('.btn-edit')!.addEventListener('click', (e) => {
       e.stopPropagation();

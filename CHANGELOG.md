@@ -1,5 +1,15 @@
 # Changelog
 
+## [3.4.2] - 2026-03-31
+
+### Changed
+
+- **Numbered temporary terminals**: Temporary terminals in the sidebar and tab bar now show "Terminal 1", "Terminal 2", etc. instead of just "Terminal".
+- **Removed New Terminal button from project actions**: The "+" New Terminal button has been removed from the project row in the sidebar.
+- **New Terminal in command palette**: The command palette now includes a "New Terminal" action that opens a standalone terminal.
+- **Fix tab switching to stay within active project**: Cmd+Left/Right now cycles only through the visible tabs for the current project, instead of jumping across all tab groups.
+- **Per-terminal split pane**: Each terminal in the sidebar now has its own split button (visible on hover when the project is active). Clicking it opens that specific terminal with its configured commands as a split pane in the current tab group. The split button has been removed from the project-level actions.
+
 ## [3.4.1] - 2026-02-18
 
 ### Added

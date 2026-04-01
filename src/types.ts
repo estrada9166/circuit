@@ -73,6 +73,7 @@ export const IPC = {
   PROJECT_CLOSE: 'project:close',
   PROJECT_OPEN_SINGLE_TERMINAL: 'project:openSingleTerminal',
   PROJECT_SPLIT: 'project:split',
+  PROJECT_SPLIT_WITH_TERMINAL: 'project:splitWithTerminal',
   PROJECT_NEW_TERMINAL: 'project:newTerminal',
   PROJECT_GET_ACTIVE: 'project:getActive',
   PROJECT_RUNNING_TERMINALS: 'project:runningTerminals',
@@ -111,6 +112,7 @@ export interface PreloadApi {
   closeProject(projectName: string): Promise<void>;
   openSingleTerminal(projectName: string, terminalName: string, prefill?: boolean): Promise<PtyCreatedEvent | null>;
   splitPane(ptyId: string): Promise<PtyCreatedEvent | null>;
+  splitWithTerminal(projectName: string, terminalName: string): Promise<PtyCreatedEvent | null>;
   newTerminal(projectName: string): Promise<PtyCreatedEvent | null>;
   getActiveProjects(): Promise<string[]>;
   getRunningTerminals(projectName: string): Promise<string[]>;

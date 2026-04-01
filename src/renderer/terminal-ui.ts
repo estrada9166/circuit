@@ -204,7 +204,7 @@ export function createTabGroup(session: TerminalSession): TabGroup {
   const group: TabGroup = {
     id: gid,
     projectName: session.projectName,
-    label: session.projectName ? `${session.projectName}: ${session.terminalName}` : 'Terminal',
+    label: session.projectName ? `${session.projectName}: ${session.terminalName}` : `Terminal ${[...tabGroups.values()].filter(g => g.projectName === '').length + 1}`,
     sessionIds: [session.id],
     element: pane,
     color: project?.color,
@@ -421,6 +421,35 @@ export async function splitSession(sessionId: string): Promise<void> {
   fitGroupSessions(group);
 
   // Focus the new split pane
+  focusSession(result.id);
+
+  renderTerminalTabs();
+  updateActiveProjects();
+}
+
+export async function splitWithTerminal(groupId: string, projectName: string, terminalName: string): Promise<void> {
+  const group = tabGroups.get(groupId);
+  if (!group) return;
+
+  const result = await window.api.splitWithTerminal(projectName, terminalName);
+  if (!result) return;
+
+  const newSession = makeTerminalSession(
+    result.id,
+    result.projectName,
+    result.terminalName,
+    group.id,
+  );
+  sessions.set(result.id, newSession);
+
+  const divider = document.createElement('div');
+  divider.className = 'split-divider';
+  group.element.appendChild(divider);
+  group.element.appendChild(newSession.element);
+
+  group.sessionIds.push(result.id);
+
+  fitGroupSessions(group);
   focusSession(result.id);
 
   renderTerminalTabs();

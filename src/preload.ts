@@ -15,6 +15,7 @@ const api: PreloadApi = {
   closeProject: (projectName) => ipcRenderer.invoke(IPC.PROJECT_CLOSE, projectName),
   openSingleTerminal: (projectName: string, terminalName: string, prefill?: boolean) => ipcRenderer.invoke(IPC.PROJECT_OPEN_SINGLE_TERMINAL, projectName, terminalName, prefill),
   splitPane: (ptyId: string) => ipcRenderer.invoke(IPC.PROJECT_SPLIT, ptyId),
+  splitWithTerminal: (projectName: string, terminalName: string) => ipcRenderer.invoke(IPC.PROJECT_SPLIT_WITH_TERMINAL, projectName, terminalName),
   newTerminal: (projectName: string) => ipcRenderer.invoke(IPC.PROJECT_NEW_TERMINAL, projectName),
   getActiveProjects: () => ipcRenderer.invoke(IPC.PROJECT_GET_ACTIVE),
   getRunningTerminals: (projectName: string) => ipcRenderer.invoke(IPC.PROJECT_RUNNING_TERMINALS, projectName),

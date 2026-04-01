@@ -227,6 +227,31 @@
       box-shadow: 0 0 4px rgba(50, 215, 75, 0.4);
     }
 
+    .terminal-sub-split {
+      width: 18px;
+      height: 18px;
+      border: none;
+      border-radius: 4px;
+      background: transparent;
+      color: var(--text-tertiary);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      opacity: 0;
+      transition: all 0.1s;
+    }
+
+    .terminal-sub-item:hover .terminal-sub-split {
+      opacity: 1;
+    }
+
+    .terminal-sub-split:hover {
+      background: rgba(255, 255, 255, 0.1);
+      color: var(--accent);
+    }
+
     .terminal-sub-new {
       width: 18px;
       height: 18px;

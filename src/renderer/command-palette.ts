@@ -9,7 +9,7 @@ let activateGroupFn: ((groupId: string) => void) | null = null;
 let selectedIndex = 0;
 
 interface PaletteItem {
-  type: 'group' | 'project' | 'terminal';
+  type: 'group' | 'project' | 'terminal' | 'action';
   id: string;
   label: string;
   projectName?: string;
@@ -102,6 +102,16 @@ function getFilteredItems(query: string): PaletteItem[] {
     }
   }
 
+  // Action: New Terminal
+  const newTermLabel = 'New Terminal';
+  if (!query || fuzzyMatch(query, newTermLabel)) {
+    items.push({
+      type: 'action',
+      id: 'action:new-terminal',
+      label: newTermLabel,
+    });
+  }
+
   return items;
 }
 
@@ -146,6 +156,8 @@ function renderList(): void {
       }
     } else if (item.type === 'project') {
       labelHtml = `<span class="command-palette-project">${esc(item.label)}</span><span class="command-palette-badge">project</span>`;
+    } else if (item.type === 'action') {
+      labelHtml = `<span class="command-palette-terminal">${esc(item.label)}</span><span class="command-palette-badge">action</span>`;
     } else {
       labelHtml = `<span class="command-palette-project">${esc(item.projectName!)}</span><span class="command-palette-separator">:</span><span class="command-palette-terminal">${esc(item.terminalName!)}</span><span class="command-palette-badge">open</span>`;
     }
@@ -200,6 +212,8 @@ function selectItem(item: PaletteItem): void {
     }
   } else if (item.type === 'terminal') {
     window.api.openSingleTerminal(item.projectName!, item.terminalName!);
+  } else if (item.type === 'action' && item.id === 'action:new-terminal') {
+    window.api.openStandaloneTerminal();
   }
 }
 

@@ -20,6 +20,7 @@ import {
   focusSession,
   removeSession,
   splitSession,
+  splitWithTerminal,
   renderTerminalTabs,
   updateActiveProjects,
   setRenderCallbacks,
@@ -45,6 +46,7 @@ async function init(): Promise<void> {
     openProject: (project) => window.api.openProject(project.name),
     openGitPanel,
     splitSession: (sessionId) => splitSession(sessionId),
+    splitWithTerminal: (groupId, projectName, terminalName) => splitWithTerminal(groupId, projectName, terminalName),
     showEditDialog,
     showRemoveDialog,
     openSingleTerminal: (projectName, terminalName, prefill) => {
@@ -265,10 +267,13 @@ async function init(): Promise<void> {
         if (session) session.terminal.clear();
       }
     }
-    // Cmd/Ctrl+Left/Right: cycle tabs
+    // Cmd/Ctrl+Left/Right: cycle tabs (only within the active project's visible tabs)
     if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
       e.preventDefault();
-      const ids = [...tabGroups.keys()];
+      const activeProjectName = activeGroupId ? tabGroups.get(activeGroupId)?.projectName : undefined;
+      const ids = [...tabGroups.entries()]
+        .filter(([, g]) => g.projectName === activeProjectName)
+        .map(([id]) => id);
       if (ids.length === 0) return;
       const curIdx = activeGroupId ? ids.indexOf(activeGroupId) : -1;
       let nextIdx: number;

@@ -363,6 +363,20 @@ app.whenReady().then(() => {
     return ptyManager.getRunningTerminalNames(projectName);
   });
 
+  ipcMain.handle(IPC.PROJECT_SPLIT_WITH_TERMINAL, (_, projectName: unknown, terminalName: unknown) => {
+    if (typeof projectName !== 'string' || typeof terminalName !== 'string') {
+      throw new Error('Project name and terminal name must be strings');
+    }
+    const project = store.projects.find(p => p.name === projectName);
+    if (!project) return null;
+
+    const termConfig = project.terminals.find(t => t.name === terminalName);
+    const commands = termConfig?.commands ?? [];
+
+    const id = ptyManager.openSingleTerminal(projectName, project.path, terminalName, commands);
+    return { id, projectName, terminalName };
+  });
+
   ipcMain.handle(IPC.PROJECT_SPLIT, (_, ptyId: unknown) => {
     if (typeof ptyId !== 'string') throw new Error('PTY ID must be a string');
     const newId = ptyManager.split(ptyId);
