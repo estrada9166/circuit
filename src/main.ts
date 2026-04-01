@@ -331,9 +331,9 @@ app.whenReady().then(() => {
     if (!project) return null;
 
     const termConfig = project.terminals.find(t => t.name === terminalName);
-    const commands = termConfig?.commands ?? [];
+    const cwd = termConfig?.cwd ? path.resolve(project.path, termConfig.cwd) : project.path;
 
-    const id = ptyManager.openSingleTerminal(projectName, project.path, terminalName, commands, prefill === true);
+    const id = ptyManager.openSingleTerminal(projectName, cwd, terminalName, termConfig?.command, prefill === true);
 
     mainWindow?.webContents.send(IPC.TERMINAL_CREATED, {
       id,
@@ -376,9 +376,8 @@ app.whenReady().then(() => {
     if (!project) return null;
 
     const termConfig = project.terminals.find(t => t.name === terminalName);
-    const commands = termConfig?.commands ?? [];
-
-    const id = ptyManager.openSingleTerminal(projectName, project.path, terminalName, commands);
+    const cwd = termConfig?.cwd ? path.resolve(project.path, termConfig.cwd) : project.path;
+    const id = ptyManager.openSingleTerminal(projectName, cwd, terminalName, termConfig?.command, true);
     return { id, projectName, terminalName };
   });
 
@@ -395,7 +394,7 @@ app.whenReady().then(() => {
   // ---- Terminal IPC ----
 
   ipcMain.handle(IPC.TERMINAL_OPEN_STANDALONE, () => {
-    const id = ptyManager.create('', 'shell', os.homedir(), []);
+    const id = ptyManager.create('', 'shell', os.homedir());
     const event = { id, projectName: '', terminalName: 'shell' };
     mainWindow?.webContents.send(IPC.TERMINAL_CREATED, event);
     return event;

@@ -101,21 +101,27 @@ function renderTerminalEntries(
                placeholder="Terminal name (e.g. server)">
         <button type="button" class="btn danger btn-remove-terminal">&times;</button>
       </div>
-      <textarea class="terminal-commands-input" rows="2"
-                placeholder="Commands (one per line)">${esc(terminal.commands.join('\n'))}</textarea>
+      <input class="terminal-cwd-input" value="${esc(terminal.cwd ?? '')}"
+             placeholder="Starting folder (relative to project root, default: .)">
+      <input class="terminal-command-input" value="${esc(terminal.command ?? '')}"
+             placeholder="Command (e.g. npm run dev)">
     `;
 
     const nameInput = div.querySelector('.terminal-name-input') as HTMLInputElement;
-    const cmdsInput = div.querySelector('.terminal-commands-input') as HTMLTextAreaElement;
+    const cwdInput = div.querySelector('.terminal-cwd-input') as HTMLInputElement;
+    const cmdInput = div.querySelector('.terminal-command-input') as HTMLInputElement;
     const removeBtn = div.querySelector('.btn-remove-terminal') as HTMLButtonElement;
 
     nameInput.addEventListener('input', () => {
       terminals[index].name = nameInput.value.trim();
     });
-    cmdsInput.addEventListener('input', () => {
-      terminals[index].commands = cmdsInput.value.trim()
-        ? cmdsInput.value.trim().split('\n').map(c => c.trim()).filter(Boolean)
-        : [];
+    cwdInput.addEventListener('input', () => {
+      const val = cwdInput.value.trim();
+      terminals[index].cwd = val || undefined;
+    });
+    cmdInput.addEventListener('input', () => {
+      const val = cmdInput.value.trim();
+      terminals[index].command = val || undefined;
     });
     removeBtn.addEventListener('click', () => {
       terminals.splice(index, 1);
@@ -202,7 +208,7 @@ export function initDialogs(): void {
     addProjectColor = undefined;
     renderColorSwatches(addColorSwatches, undefined, (c) => { addProjectColor = c; });
     addError.textContent = '';
-    setAddTerminals([{ name: '', commands: [] }]);
+    setAddTerminals([{ name: '' }]);
     rerenderAddTerminals();
     addDialog.showModal();
     addName.focus();
@@ -214,7 +220,7 @@ export function initDialogs(): void {
   });
 
   document.getElementById('btn-add-terminal-new')!.addEventListener('click', () => {
-    addTerminals.push({ name: '', commands: [] });
+    addTerminals.push({ name: '' });
     rerenderAddTerminals();
   });
 
@@ -227,7 +233,7 @@ export function initDialogs(): void {
       return;
     }
 
-    const terminals = addTerminals.filter(t => t.name || t.commands.length > 0);
+    const terminals = addTerminals.filter(t => t.name || t.command);
     const validationError = validateTerminals(terminals);
     if (validationError) {
       addError.textContent = validationError;
@@ -249,14 +255,14 @@ export function initDialogs(): void {
   // ---- Edit dialog button handlers ----
 
   document.getElementById('btn-add-terminal')!.addEventListener('click', () => {
-    editTerminals.push({ name: '', commands: [] });
+    editTerminals.push({ name: '' });
     rerenderEditTerminals();
   });
 
   document.getElementById('edit-submit')!.addEventListener('click', async () => {
     if (!editingProject) return;
 
-    const terminals = editTerminals.filter(t => t.name || t.commands.length > 0);
+    const terminals = editTerminals.filter(t => t.name || t.command);
     const validationError = validateTerminals(terminals);
     if (validationError) {
       editError.textContent = validationError;
@@ -297,7 +303,7 @@ export function initDialogs(): void {
 export function showEditDialog(project: Project): void {
   setEditingProject(project);
   editProjectName.textContent = project.name;
-  setEditTerminals(project.terminals.map(t => ({ name: t.name, commands: [...t.commands], color: t.color })));
+  setEditTerminals(project.terminals.map(t => ({ name: t.name, command: t.command, color: t.color, cwd: t.cwd })));
 
   // Initialize project color swatches
   editProjectColor = project.color;

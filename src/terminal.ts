@@ -1,5 +1,6 @@
 import * as pty from "node-pty";
 import * as os from "os";
+import * as path from "path";
 import { randomUUID } from "crypto";
 import { BrowserWindow } from "electron";
 import { IPC } from "./types";
@@ -98,7 +99,7 @@ export class PtyManager {
     projectName: string,
     terminalName: string,
     cwd: string,
-    initialCommands: string[],
+    initialCommand?: string,
     prefill: boolean = false,
   ): string {
     const id = randomUUID();
@@ -142,7 +143,7 @@ export class PtyManager {
     // Start flush timer if not running (lazy start — only when PTYs exist)
     this.startFlushTimer();
 
-    let hasReceivedData = false;
+
     let commandsSent = false;
     let initCmdTimer: ReturnType<typeof setTimeout> | null = null;
 
@@ -161,18 +162,18 @@ export class PtyManager {
         // Log raw output to disk
         this.logger?.write(id, data);
 
-        // Wait for first data from shell before writing initial commands
-        if (!hasReceivedData) {
-          hasReceivedData = true;
-          if (initialCommands.length > 0 && !commandsSent) {
+        // Wait for shell prompt before writing initial commands
+        if (initialCommand && !commandsSent) {
+          // Strip ANSI escape sequences, then check for common prompt endings
+          const stripped = data.replace(/\x1b\[[0-9;]*[a-zA-Z]/g, '').replace(/\x1b\][^\x07]*\x07/g, '').trimEnd();
+          if (stripped.endsWith('$') || stripped.endsWith('%') || stripped.endsWith('>') || stripped.endsWith('#')) {
             commandsSent = true;
             initCmdTimer = setTimeout(() => {
               initCmdTimer = null;
               if (this.ptys.has(id)) {
-                const cmdString = initialCommands.join(" && ");
-                proc.write(prefill ? cmdString : cmdString + "\r");
+                proc.write(prefill ? initialCommand : initialCommand + "\r");
               }
-            }, 50);
+            }, 10);
           }
         }
       }),
@@ -230,11 +231,12 @@ export class PtyManager {
 
     try {
       if (terminals.length === 0) {
-        terminals = [{ name: "shell", commands: [] }];
+        terminals = [{ name: "shell" }];
       }
-      return terminals.map((t) =>
-        this.create(projectName, t.name, cwd, t.commands),
-      );
+      return terminals.map((t) => {
+        const termCwd = t.cwd ? path.resolve(cwd, t.cwd) : cwd;
+        return this.create(projectName, t.name, termCwd, t.command, true);
+      });
     } finally {
       this.openingProjects.delete(projectName);
     }
@@ -248,13 +250,12 @@ export class PtyManager {
       existing.projectName,
       `split-${Date.now()}`,
       existing.cwd,
-      [],
     );
   }
 
   /** Spawn a new standalone terminal tab for a project. */
   newTerminal(projectName: string, cwd: string): string {
-    return this.create(projectName, "shell", cwd, []);
+    return this.create(projectName, "shell", cwd);
   }
 
   /** Open a single named terminal for a project. */
@@ -262,10 +263,10 @@ export class PtyManager {
     projectName: string,
     cwd: string,
     terminalName: string,
-    commands: string[],
+    command?: string,
     prefill: boolean = false,
   ): string {
-    return this.create(projectName, terminalName, cwd, commands, prefill);
+    return this.create(projectName, terminalName, cwd, command, prefill);
   }
 
   /** Get terminal names currently running for a project. */

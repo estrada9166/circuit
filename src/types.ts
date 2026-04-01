@@ -1,8 +1,9 @@
 /** A single named terminal configuration within a project */
 export interface TerminalConfig {
   name: string;
-  commands: string[];
+  command?: string;
   color?: string;
+  cwd?: string;
 }
 
 /** A project with its terminal configurations */

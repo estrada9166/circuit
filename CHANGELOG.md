@@ -2,6 +2,15 @@
 
 ## [3.5.0] - 2026-04-01
 
+### Changed
+
+- **Lucide icons**: Replaced all hand-crafted inline SVGs with [Lucide](https://lucide.dev/) icons for consistency.
+- **Run button**: Changed from a text button to a play icon.
+
+### Fixed
+
+- **Split button prefills instead of running**: Clicking the split button on a terminal now prefills the command instead of executing it immediately, matching the expected behavior.
+
 ### Added
 
 - **Infinite terminal buffer**: All terminal output is now logged to disk per-session, providing effectively unlimited history.
@@ -10,6 +19,13 @@
 - **Show Full Log**: New command palette action to open the raw terminal log file in your system editor.
 - **History overlay**: When scrolling to the top of the terminal buffer, a seamless overlay appears showing older output loaded from disk. Supports lazy chunk loading (scroll up for more), in-overlay search (Cmd+F), and ANSI color rendering.
 - **Log cleanup**: Terminal logs older than 7 days are automatically cleaned up on app startup.
+
+- **Per-terminal starting folder**: Each terminal can now have a custom starting directory (relative to the project root). Configurable via the edit dialog. Defaults to the project root when not set.
+
+### Changed
+
+- **Single command per terminal**: Terminals now use a single `command` field instead of a `commands` array. Existing configs with multiple commands are automatically migrated (joined with `&&`). The dialog textarea has been replaced with a single-line input.
+- **Prefill commands by default**: Clicking a terminal name in the sidebar opens it with the command prefilled but not executed — press Enter to run. A separate "Run" button opens the terminal and executes the command immediately.
 
 ### Fixed
 

@@ -33,7 +33,7 @@ let callbacks: {
   focusSession: FocusSessionFn;
   render: RenderFn;
   refreshRunningTerminals: (projectName: string) => Promise<void>;
-  updateProject: (projectName: string, fields: { terminals: { name: string; commands: string[]; color?: string }[] }) => Promise<void>;
+  updateProject: (projectName: string, fields: { terminals: { name: string; command?: string; color?: string }[] }) => Promise<void>;
   reorderProjects: ReorderProjectsFn;
 } | null = null;
 
@@ -56,28 +56,21 @@ function clearDropIndicators(): void {
   });
 }
 
-// ---- SVG icons ----
+// ---- Icons (lucide) ----
 
-const SVG_GIT = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="18" r="3"/><circle cx="6" cy="6" r="3"/><path d="M6 21V9a9 9 0 0 0 9 9"/></svg>';
-
-
-const SVG_EDIT = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>';
-
-const SVG_REMOVE = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>';
-
-const SVG_CHEVRON = '<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>';
-
-const SVG_FOLDER_CLOSED = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z"/></svg>';
-
-const SVG_FOLDER_OPEN = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 14 1.5-2.9A2 2 0 0 1 9.24 10H20a2 2 0 0 1 1.94 2.5l-1.54 6a2 2 0 0 1-1.95 1.5H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h3.9a2 2 0 0 1 1.69.9l.81 1.2a2 2 0 0 0 1.67.9H18a2 2 0 0 1 2 2v2"/></svg>';
-
-const SVG_TERMINAL = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></svg>';
-
-const SVG_SMALL_PLUS = '<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>';
-
-const SVG_SMALL_X = '<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>';
-
-const SVG_SMALL_SPLIT = '<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="12" y1="3" x2="12" y2="21"/></svg>';
+import {
+  ICON_GIT,
+  ICON_EDIT,
+  ICON_REMOVE,
+  ICON_CHEVRON,
+  ICON_FOLDER_CLOSED,
+  ICON_FOLDER_OPEN,
+  ICON_TERMINAL,
+  ICON_SMALL_PLUS,
+  ICON_SMALL_X,
+  ICON_SMALL_SPLIT,
+  ICON_PLAY,
+} from './icons';
 
 // ---- Init ----
 
@@ -175,8 +168,8 @@ export function renderSidebar(): void {
     li.innerHTML = `
       <div class="project-row">
         <div class="project-icon${hasTerminals ? ' has-terminals' : ''}"${iconStyle}>
-          ${isExpanded ? SVG_FOLDER_OPEN : SVG_FOLDER_CLOSED}
-          ${hasTerminals ? `<span class="icon-chevron${isExpanded ? ' open' : ''}">${SVG_CHEVRON}</span>` : ''}
+          ${isExpanded ? ICON_FOLDER_OPEN : ICON_FOLDER_CLOSED}
+          ${hasTerminals ? `<span class="icon-chevron${isExpanded ? ' open' : ''}">${ICON_CHEVRON}</span>` : ''}
         </div>
         <div class="project-details">
           <div class="project-name">${esc(project.name)}</div>
@@ -185,9 +178,9 @@ export function renderSidebar(): void {
         ${hasProjectNotification ? '<div class="notification-indicator"></div>' : ''}
         ${isActive && !hasProjectNotification ? '<div class="active-indicator"></div>' : ''}
         <div class="project-actions">
-          <button class="action-btn btn-git" title="Git Status">${SVG_GIT}</button>
-          <button class="action-btn btn-edit" title="Edit">${SVG_EDIT}</button>
-          <button class="action-btn danger btn-remove" title="Remove">${SVG_REMOVE}</button>
+          <button class="action-btn btn-git" title="Git Status">${ICON_GIT}</button>
+          <button class="action-btn btn-edit" title="Edit">${ICON_EDIT}</button>
+          <button class="action-btn danger btn-remove" title="Remove">${ICON_REMOVE}</button>
         </div>
       </div>
     `;
@@ -211,20 +204,23 @@ export function renderSidebar(): void {
           + (isFocused ? ' focused' : '')
           + (termHasNotification ? ' has-notification' : '');
         subItem.innerHTML = `
-          <span class="terminal-sub-icon">${SVG_TERMINAL}</span>
+          <span class="terminal-sub-icon">${ICON_TERMINAL}</span>
           <span class="terminal-sub-name">${esc(term.name)}</span>
           ${termHasNotification ? '<span class="terminal-sub-notification"></span>' : (isRunning ? '<span class="terminal-sub-running"></span>' : '')}
-          <button class="terminal-sub-split" title="Open as split pane">${SVG_SMALL_SPLIT}</button>
-          <button class="terminal-sub-new" title="Open new tab">${SVG_SMALL_PLUS}</button>
-          <button class="terminal-sub-delete" title="Remove terminal">${SVG_SMALL_X}</button>
-          <span class="terminal-sub-action">${isRunning ? 'Focus' : 'Run'}</span>
+          <button class="terminal-sub-split" title="Open as split pane">${ICON_SMALL_SPLIT}</button>
+          <button class="terminal-sub-new" title="Open new tab">${ICON_SMALL_PLUS}</button>
+          <button class="terminal-sub-delete" title="Remove terminal">${ICON_SMALL_X}</button>
+          ${isRunning
+            ? '<span class="terminal-sub-action">Focus</span>'
+            : `<button class="terminal-sub-run" title="Run">${ICON_PLAY}</button>`}
         `;
 
-        // Click row: focus if running (check live sessions), launch if not
+        // Click row: focus if running, open with prefill if not
         subItem.addEventListener('click', (e) => {
           if ((e.target as HTMLElement).closest('.terminal-sub-split')) return;
           if ((e.target as HTMLElement).closest('.terminal-sub-new')) return;
           if ((e.target as HTMLElement).closest('.terminal-sub-delete')) return;
+          if ((e.target as HTMLElement).closest('.terminal-sub-run')) return;
           e.stopPropagation();
           if (!callbacks) return;
           const liveSession = [...sessions.values()].find(
@@ -238,9 +234,19 @@ export function renderSidebar(): void {
               callbacks.focusSession(liveSession.id);
             }
           } else {
-            callbacks.openSingleTerminal(project.name, term.name, false);
+            callbacks.openSingleTerminal(project.name, term.name, true);
           }
         });
+
+        // Run button: open terminal and execute command immediately
+        const runBtn = subItem.querySelector('.terminal-sub-run');
+        if (runBtn) {
+          runBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            if (!callbacks) return;
+            callbacks.openSingleTerminal(project.name, term.name, false);
+          });
+        }
 
         // Split button: open this terminal as a split pane in the active group for this project
         subItem.querySelector('.terminal-sub-split')!.addEventListener('click', (e) => {

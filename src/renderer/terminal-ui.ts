@@ -344,7 +344,7 @@ export function removeSession(id: string): void {
   for (const d of session.disposables) d.dispose();
   session.terminal.dispose();
 
-  // Clean up stale notification state
+  // Clean up stale state
   notifiedSessionIds.delete(id);
 
   const group = tabGroups.get(session.groupId);

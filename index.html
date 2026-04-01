@@ -317,6 +317,27 @@
       color: var(--accent);
     }
 
+    .terminal-sub-run {
+      color: var(--text-tertiary);
+      background: none;
+      border: none;
+      padding: 2px;
+      cursor: pointer;
+      opacity: 0;
+      transition: opacity 0.1s;
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+    }
+
+    .terminal-sub-item:hover .terminal-sub-run {
+      opacity: 1;
+    }
+
+    .terminal-sub-run:hover {
+      color: var(--accent);
+    }
+
     .terminal-sub-item.focused {
       background: var(--bg-hover);
     }
@@ -739,6 +760,10 @@
       font-family: inherit;
       background: #2c2c2e;
       color: var(--text);
+      margin: auto;
+      position: fixed;
+      inset: 0;
+      height: fit-content;
     }
 
     dialog::backdrop {
@@ -930,7 +955,8 @@
     .edit-terminal-entry .color-swatches { margin: 4px 0; }
 
     .terminal-name-input { flex: 1; margin-right: 6px; }
-    .terminal-commands-input { min-height: 40px !important; }
+    .terminal-cwd-input { width: 100%; margin-top: 4px; font-size: 11px; opacity: 0.8; }
+    .terminal-command-input { width: 100%; margin-top: 4px; }
     .btn-remove-terminal { padding: 2px 6px !important; font-size: 14px !important; line-height: 1; }
     .btn-add-term { font-size: 11px; margin-top: 2px; }
 
@@ -1869,10 +1895,8 @@
       <ul class="project-list" id="project-list" role="listbox" aria-label="Project list"></ul>
 
       <div class="empty-state" id="empty-state" hidden>
-        <svg viewBox="0 0 24 24">
-          <rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect>
-          <line x1="8" y1="21" x2="16" y2="21"></line>
-          <line x1="12" y1="17" x2="12" y2="21"></line>
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <rect width="20" height="14" x="2" y="3" rx="2"/><line x1="8" x2="16" y1="21" y2="21"/><line x1="12" x2="12" y1="17" y2="21"/>
         </svg>
         <p>No projects yet.<br>Add one to get started.</p>
       </div>
@@ -1881,7 +1905,7 @@
         <button class="add-btn" id="btn-new-terminal">+ New Terminal</button>
         <button class="add-btn" id="btn-add">+ New Project</button>
         <button class="shortcuts-btn" id="btn-shortcuts" title="Keyboard Shortcuts">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="M6 8h.01M10 8h.01M14 8h.01M18 8h.01M8 12h.01M12 12h.01M16 12h.01M8 16h8"/></svg>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 8h.01"/><path d="M12 12h.01"/><path d="M14 8h.01"/><path d="M16 12h.01"/><path d="M18 8h.01"/><path d="M6 8h.01"/><path d="M7 16h10"/><path d="M8 12h.01"/><rect width="20" height="16" x="2" y="4" rx="2"/></svg>
           Shortcuts
         </button>
       </div>
