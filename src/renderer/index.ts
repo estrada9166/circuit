@@ -30,6 +30,7 @@ import { initGitPanel, openGitPanel, closeGitPanel, renderGitTab, setTerminalCal
 import { initDialogs, showEditDialog, showRemoveDialog } from './dialogs';
 import { initCommandPalette, openCommandPalette } from './command-palette';
 import { initLogSearch, openLogSearch } from './log-search';
+import { openTerminalSearch } from './terminal-search';
 import { initHistoryOverlay } from './history-overlay';
 import type { PtyCreatedEvent } from '../types';
 
@@ -201,6 +202,7 @@ async function init(): Promise<void> {
     <div class="shortcut-row"><span class="shortcut-key">\u2318 P</span><span class="shortcut-desc">Command palette</span></div>
     <div class="shortcut-row"><span class="shortcut-key">\u2318 D</span><span class="shortcut-desc">Split pane</span></div>
     <div class="shortcut-row"><span class="shortcut-key">\u2318 K</span><span class="shortcut-desc">Clear terminal</span></div>
+    <div class="shortcut-row"><span class="shortcut-key">\u2318 F</span><span class="shortcut-desc">Find in terminal</span></div>
     <div class="shortcut-row"><span class="shortcut-key">\u2318 \u21e7 F</span><span class="shortcut-desc">Search terminal history</span></div>
   `;
   document.body.appendChild(shortcutPopup);
@@ -262,6 +264,12 @@ async function init(): Promise<void> {
       e.preventDefault();
       const focused = focusedSessionId;
       if (focused) splitSession(focused);
+    }
+    // Cmd/Ctrl+F: find in terminal
+    if (e.key === 'f' && !e.shiftKey) {
+      e.preventDefault();
+      if (focusedSessionId) openTerminalSearch(focusedSessionId);
+      return;
     }
     // Cmd/Ctrl+Shift+F: search terminal history
     if (e.shiftKey && (e.key === 'f' || e.key === 'F')) {

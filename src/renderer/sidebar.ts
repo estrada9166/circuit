@@ -395,7 +395,6 @@ export function renderSidebar(): void {
   if (temporaryGroups.length > 0) {
     const section = document.createElement('li');
     section.className = 'temporary-section';
-    section.innerHTML = `<div class="temporary-header">Temporary</div>`;
 
     const subList = document.createElement('ul');
     subList.className = 'terminal-sub-list';
@@ -405,7 +404,7 @@ export function renderSidebar(): void {
       const item = document.createElement('li');
       item.className = 'terminal-sub-item' + (isActive ? ' focused' : '');
       item.innerHTML = `
-        <span class="terminal-sub-icon">${SVG_TERMINAL}</span>
+        <span class="terminal-sub-icon">${ICON_TERMINAL}</span>
         <span class="terminal-sub-name">${esc(group.label)}</span>
       `;
       item.addEventListener('click', () => {

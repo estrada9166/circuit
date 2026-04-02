@@ -1604,6 +1604,65 @@
       border-radius: 4px;
     }
 
+    /* ── Inline terminal search bar (Cmd+F) ── */
+
+    .terminal-search-bar {
+      position: absolute;
+      top: 8px;
+      right: 24px;
+      z-index: 5;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      padding: 4px 8px;
+      background: #2c2c2e;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+    }
+
+    .terminal-search-bar[hidden] {
+      display: none;
+    }
+
+    .terminal-search-input {
+      width: 180px;
+      background: transparent;
+      border: none;
+      color: var(--text);
+      font-size: 13px;
+      font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, sans-serif;
+      outline: none;
+    }
+
+    .terminal-search-input::placeholder {
+      color: var(--text-tertiary);
+    }
+
+    .terminal-search-count {
+      font-size: 11px;
+      color: var(--text-tertiary);
+      white-space: nowrap;
+      min-width: 48px;
+      text-align: right;
+    }
+
+    .terminal-search-nav {
+      background: none;
+      border: none;
+      color: var(--text-tertiary);
+      cursor: pointer;
+      padding: 2px 4px;
+      border-radius: 3px;
+      font-size: 13px;
+      line-height: 1;
+    }
+
+    .terminal-search-nav:hover {
+      background: var(--bg-hover);
+      color: var(--text);
+    }
+
     /* ── History overlay (Phase 2 — infinite scroll) ── */
 
     .history-overlay {

@@ -1,5 +1,11 @@
 # Changelog
 
+## [3.6.0] - 2026-04-02
+
+### Added
+
+- **Inline terminal search (⌘F)**: Find text in the terminal buffer with match highlighting and navigation. Shows match count, supports Enter/Shift+Enter to navigate, Escape to close.
+
 ## [3.5.0] - 2026-04-01
 
 ### Changed
@@ -9,6 +15,7 @@
 
 ### Fixed
 
+- **Temporary terminals not appearing in sidebar**: Fixed a `ReferenceError` caused by using an undefined `SVG_TERMINAL` variable instead of the imported `ICON_TERMINAL` in the temporary terminals section of the sidebar.
 - **Split button prefills instead of running**: Clicking the split button on a terminal now prefills the command instead of executing it immediately, matching the expected behavior.
 
 ### Added

@@ -19,6 +19,7 @@ import {
 } from './state';
 import { esc } from './utils';
 import { showHistoryOverlay, hideHistoryOverlay } from './history-overlay';
+import { attachSearchAddon, disposeTerminalSearch } from './terminal-search';
 
 // ---- Render callback wiring (avoids circular dependency with git-panel) ----
 
@@ -185,7 +186,7 @@ export function makeTerminalSession(
     focusSession(id);
   });
 
-  return {
+  const session: TerminalSession = {
     id,
     projectName,
     terminalName,
@@ -195,6 +196,10 @@ export function makeTerminalSession(
     groupId,
     disposables,
   };
+
+  attachSearchAddon(session);
+
+  return session;
 }
 
 // ---- Tab group management ----
@@ -343,6 +348,9 @@ export function removeSession(id: string): void {
   // Dispose tracked event listeners
   for (const d of session.disposables) d.dispose();
   session.terminal.dispose();
+
+  // Clean up search bar
+  disposeTerminalSearch(id);
 
   // Clean up stale state
   notifiedSessionIds.delete(id);
