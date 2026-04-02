@@ -265,10 +265,10 @@ export function renderSidebar(): void {
           }
         });
 
-        // "+" button: always open a new tab for this terminal
+        // "+" button: open a new tab for this terminal, prefilled but not executed
         subItem.querySelector('.terminal-sub-new')!.addEventListener('click', (e) => {
           e.stopPropagation();
-          if (callbacks) callbacks.openSingleTerminal(project.name, term.name, false);
+          if (callbacks) callbacks.openSingleTerminal(project.name, term.name, true);
         });
 
         // Delete button: remove this terminal config from the project

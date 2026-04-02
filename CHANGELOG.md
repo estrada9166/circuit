@@ -1,5 +1,11 @@
 # Changelog
 
+## [3.6.1] - 2026-04-02
+
+### Fixed
+
+- **"\u2022" button prefill behavior**: Clicking the "+" button on a terminal now prefills the command instead of executing it immediately, matching the same behavior as clicking the terminal row itself.
+
 ## [3.6.0] - 2026-04-02
 
 ### Added

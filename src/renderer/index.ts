@@ -237,16 +237,29 @@ async function init(): Promise<void> {
   });
 
   // Keyboard shortcuts
-  document.addEventListener('keydown', (e) => {
-    const mod = e.metaKey || e.ctrlKey;
+   document.addEventListener('keydown', (e) => {
+     const mod = e.metaKey || e.ctrlKey;
 
-    if (!mod) return;
+     if (!mod) return;
 
-    // Cmd/Ctrl+N: open add project dialog
-    if (e.key === 'n') {
-      e.preventDefault();
-      document.getElementById('btn-add')?.click();
-    }
+      // Cmd/Ctrl+B: toggle sidebar
+     if (e.key === 'b') {
+       e.preventDefault();
+       const sidebar = document.querySelector('.sidebar') as HTMLElement;
+       if (sidebar) {
+         sidebar.classList.toggle("hidden");
+         setTimeout(() => {
+           if (window.innerWidth > 400) {
+             window.dispatchEvent(new Event('resize'));
+            }
+          }, 50);
+       }
+      }
+      // Cmd/Ctrl+N: open add project dialog
+     if (e.key === 'n') {
+       e.preventDefault();
+       document.getElementById('btn-add')?.click();
+      }
     // Cmd/Ctrl+T: open standalone terminal
     if (e.key === 't') {
       e.preventDefault();
