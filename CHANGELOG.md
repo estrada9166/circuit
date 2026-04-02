@@ -6,6 +6,10 @@
 
 - **Inline terminal search (⌘F)**: Find text in the terminal buffer with match highlighting and navigation. Shows match count, supports Enter/Shift+Enter to navigate, Escape to close.
 
+### Fixed
+
+- **Command palette runs terminal commands instead of prefilling**: Opening a terminal from the command palette now prefills the command instead of executing it immediately.
+
 ## [3.5.0] - 2026-04-01
 
 ### Changed

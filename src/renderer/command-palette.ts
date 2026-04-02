@@ -223,7 +223,7 @@ function selectItem(item: PaletteItem): void {
       window.api.openProject(item.projectName!);
     }
   } else if (item.type === 'terminal') {
-    window.api.openSingleTerminal(item.projectName!, item.terminalName!);
+    window.api.openSingleTerminal(item.projectName!, item.terminalName!, true);
   } else if (item.type === 'action' && item.id === 'action:new-terminal') {
     window.api.openStandaloneTerminal();
   } else if (item.type === 'action' && item.id === 'action:show-full-log') {
