@@ -199,6 +199,7 @@ async function init(): Promise<void> {
     <div class="shortcut-row"><span class="shortcut-key">\u2318 \u2190/\u2192</span><span class="shortcut-desc">Switch tab</span></div>
     <div class="shortcut-row"><span class="shortcut-key">\u2318 N</span><span class="shortcut-desc">New project</span></div>
     <div class="shortcut-row"><span class="shortcut-key">\u2318 T</span><span class="shortcut-desc">New terminal</span></div>
+	<div class="shortcut-row"><span class="shortcut-key">\u2318 B</span><span class="shortcut-desc">Toggle sidebar</span></div>
     <div class="shortcut-row"><span class="shortcut-key">\u2318 P</span><span class="shortcut-desc">Command palette</span></div>
     <div class="shortcut-row"><span class="shortcut-key">\u2318 D</span><span class="shortcut-desc">Split pane</span></div>
     <div class="shortcut-row"><span class="shortcut-key">\u2318 K</span><span class="shortcut-desc">Clear terminal</span></div>

@@ -209,7 +209,10 @@ function createWindow(): void {
   // Save window state on changes (debounced for resize/move, immediate on close)
   mainWindow.on('resize', saveWindowState);
   mainWindow.on('move', saveWindowState);
-  mainWindow.on('close', saveWindowStateNow);
+  mainWindow.on('close', (event) => {
+    saveWindowStateNow();
+    app.quit();
+   });
 
   // ---- Security: restrict navigation and new windows ----
   mainWindow.webContents.on('will-navigate', (event) => {
@@ -492,11 +495,9 @@ app.on('before-quit', () => {
   ptyManager.killAll();
 });
 
-// macOS: keep app running when window closed, re-create on dock click
+// Exit when all windows are closed on any platform
 app.on('window-all-closed', () => {
-  if (process.platform !== 'darwin') {
-    app.quit();
-  }
+  app.quit();
 });
 
 app.on('activate', () => {
