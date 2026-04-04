@@ -10,7 +10,7 @@ import {
   setProjects,
   setActiveProjects,
 } from './state';
-import { initSidebar, renderSidebar, setSidebarCallbacks } from './sidebar';
+import { initSidebar, renderSidebar, updateSidebarNotifications, setSidebarCallbacks } from './sidebar';
 import {
   initTerminalUI,
   makeTerminalSession,
@@ -143,7 +143,7 @@ async function init(): Promise<void> {
         setTimeout(() => {
           notificationRenderPending = false;
           renderTerminalTabs();
-          renderSidebar();
+          updateSidebarNotifications();
         }, 300);
       }
     }

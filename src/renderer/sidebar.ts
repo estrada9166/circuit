@@ -203,6 +203,7 @@ export function renderSidebar(): void {
           + (isRunning ? ' running' : '')
           + (isFocused ? ' focused' : '')
           + (termHasNotification ? ' has-notification' : '');
+        subItem.dataset.terminalName = term.name;
         subItem.innerHTML = `
           <span class="terminal-sub-icon">${ICON_TERMINAL}</span>
           <span class="terminal-sub-name">${esc(term.name)}</span>
@@ -417,5 +418,76 @@ export function renderSidebar(): void {
 
     section.appendChild(subList);
     list.appendChild(section);
+  }
+}
+
+// ---- Targeted notification update (avoids full DOM rebuild on terminal output) ----
+
+export function updateSidebarNotifications(): void {
+  // Build session-by-project index
+  const sessionsByProject = new Map<string, typeof sessions extends Map<string, infer V> ? V[] : never>();
+  for (const [, session] of sessions) {
+    let arr = sessionsByProject.get(session.projectName);
+    if (!arr) { arr = []; sessionsByProject.set(session.projectName, arr); }
+    arr.push(session);
+  }
+
+  for (const li of list.querySelectorAll<HTMLElement>('li[data-project-name]')) {
+    const projectName = li.dataset.projectName!;
+    const projectSessions = sessionsByProject.get(projectName) || [];
+    const isActive = activeProjects.includes(projectName);
+    const hasProjectNotification = projectSessions.some(s => notifiedSessionIds.has(s.id));
+
+    // Update project-level indicator
+    const row = li.querySelector('.project-row')!;
+    const actions = row.querySelector('.project-actions')!;
+    let indicator = row.querySelector<HTMLElement>('.notification-indicator, .active-indicator');
+
+    if (hasProjectNotification) {
+      if (!indicator || !indicator.classList.contains('notification-indicator')) {
+        indicator?.remove();
+        const el = document.createElement('div');
+        el.className = 'notification-indicator';
+        row.insertBefore(el, actions);
+      }
+    } else if (isActive) {
+      if (!indicator || !indicator.classList.contains('active-indicator')) {
+        indicator?.remove();
+        const el = document.createElement('div');
+        el.className = 'active-indicator';
+        row.insertBefore(el, actions);
+      }
+    } else {
+      indicator?.remove();
+    }
+
+    // Update terminal sub-item notification state
+    for (const subItem of li.querySelectorAll<HTMLElement>('li[data-terminal-name]')) {
+      const termName = subItem.dataset.terminalName!;
+      const termHasNotification = projectSessions.some(
+        s => s.terminalName === termName && notifiedSessionIds.has(s.id)
+      );
+      const isRunning = projectSessions.some(s => s.terminalName === termName);
+
+      subItem.classList.toggle('has-notification', termHasNotification);
+
+      // Update the status span (notification dot / running dot)
+      const name = subItem.querySelector('.terminal-sub-name')!;
+      let statusSpan = name.nextElementSibling as HTMLElement | null;
+      // Remove existing status span if it's one we manage
+      if (statusSpan && (statusSpan.classList.contains('terminal-sub-notification') || statusSpan.classList.contains('terminal-sub-running'))) {
+        statusSpan.remove();
+        statusSpan = null;
+      }
+      if (termHasNotification) {
+        const span = document.createElement('span');
+        span.className = 'terminal-sub-notification';
+        name.insertAdjacentElement('afterend', span);
+      } else if (isRunning) {
+        const span = document.createElement('span');
+        span.className = 'terminal-sub-running';
+        name.insertAdjacentElement('afterend', span);
+      }
+    }
   }
 }

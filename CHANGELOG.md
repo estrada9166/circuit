@@ -1,5 +1,12 @@
 # Changelog
 
+## [3.6.2] - 2026-04-04
+
+### Fixed
+
+- **Sidebar hover blinking during terminal output**: Notification updates from background terminal output no longer trigger a full sidebar DOM rebuild. A targeted `updateSidebarNotifications()` function now updates only the indicator elements in-place, preserving hover state.
+- **Project icon shows blue when no color selected**: Default project icon color is now gray (`--text-secondary`) instead of blue (`--accent`).
+
 ## [3.6.1] - 2026-04-02
 
 ### Fixed
