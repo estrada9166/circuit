@@ -1,5 +1,92 @@
 # Changelog
 
+## [3.6.3] - 2026-04-04
+
+### Fixed
+
+- **Terminal close navigation**: Closing a terminal now selects the tab to the left instead of jumping to the last tab. Falls back to the right neighbour if the closed tab was leftmost, or clears selection if no tabs remain.
+
+## [3.6.2] - 2026-04-04
+
+### Fixed
+
+- **Sidebar hover blinking during terminal output**: Notification updates from background terminal output no longer trigger a full sidebar DOM rebuild. A targeted `updateSidebarNotifications()` function now updates only the indicator elements in-place, preserving hover state.
+- **Project icon shows blue when no color selected**: Default project icon color is now gray (`--text-secondary`) instead of blue (`--accent`).
+
+## [3.6.1] - 2026-04-02
+
+### Fixed
+
+- **"\u2022" button prefill behavior**: Clicking the "+" button on a terminal now prefills the command instead of executing it immediately, matching the same behavior as clicking the terminal row itself.
+
+## [3.6.0] - 2026-04-02
+
+### Added
+
+- **Inline terminal search (⌘F)**: Find text in the terminal buffer with match highlighting and navigation. Shows match count, supports Enter/Shift+Enter to navigate, Escape to close.
+
+### Fixed
+
+- **Command palette runs terminal commands instead of prefilling**: Opening a terminal from the command palette now prefills the command instead of executing it immediately.
+
+## [3.5.0] - 2026-04-01
+
+### Changed
+
+- **Lucide icons**: Replaced all hand-crafted inline SVGs with [Lucide](https://lucide.dev/) icons for consistency.
+- **Run button**: Changed from a text button to a play icon.
+
+### Fixed
+
+- **Temporary terminals not appearing in sidebar**: Fixed a `ReferenceError` caused by using an undefined `SVG_TERMINAL` variable instead of the imported `ICON_TERMINAL` in the temporary terminals section of the sidebar.
+- **Split button prefills instead of running**: Clicking the split button on a terminal now prefills the command instead of executing it immediately, matching the expected behavior.
+
+### Added
+
+- **Infinite terminal buffer**: All terminal output is now logged to disk per-session, providing effectively unlimited history.
+- **Increased scrollback**: xterm.js scrollback increased from 5,000 to 50,000 lines for deeper in-memory history.
+- **History search (Cmd+Shift+F)**: Full-text search across the entire terminal history, powered by disk-backed logs. Highlights matching results with line numbers.
+- **Show Full Log**: New command palette action to open the raw terminal log file in your system editor.
+- **History overlay**: When scrolling to the top of the terminal buffer, a seamless overlay appears showing older output loaded from disk. Supports lazy chunk loading (scroll up for more), in-overlay search (Cmd+F), and ANSI color rendering.
+- **Log cleanup**: Terminal logs older than 7 days are automatically cleaned up on app startup.
+
+- **Per-terminal starting folder**: Each terminal can now have a custom starting directory (relative to the project root). Configurable via the edit dialog. Defaults to the project root when not set.
+
+### Changed
+
+- **Single command per terminal**: Terminals now use a single `command` field instead of a `commands` array. Existing configs with multiple commands are automatically migrated (joined with `&&`). The dialog textarea has been replaced with a single-line input.
+- **Prefill commands by default**: Clicking a terminal name in the sidebar opens it with the command prefilled but not executed — press Enter to run. A separate "Run" button opens the terminal and executes the command immediately.
+
+### Fixed
+
+- **Split button now splits the active tab**: The sidebar split button was always splitting the first terminal group for a project instead of the currently active one.
+
+## [3.4.2] - 2026-03-31
+
+### Changed
+
+- **Numbered temporary terminals**: Temporary terminals in the sidebar and tab bar now show "Terminal 1", "Terminal 2", etc. instead of just "Terminal".
+- **Removed New Terminal button from project actions**: The "+" New Terminal button has been removed from the project row in the sidebar.
+- **New Terminal in command palette**: The command palette now includes a "New Terminal" action that opens a standalone terminal.
+- **Fix tab switching to stay within active project**: Cmd+Left/Right now cycles only through the visible tabs for the current project, instead of jumping across all tab groups.
+- **Per-terminal split pane**: Each terminal in the sidebar now has its own split button (visible on hover when the project is active). Clicking it opens that specific terminal with its configured commands as a split pane in the current tab group. The split button has been removed from the project-level actions.
+
+## [3.4.1] - 2026-02-18
+
+### Added
+
+- **Git branch in sidebar**: Each project in the sidebar now shows the current git branch name below the project title.
+
+## [3.4.0] - 2026-02-18
+
+### Changed
+
+- **No duplicate terminal instances**: Clicking a terminal in the sidebar that is already open now focuses it directly instead of opening a new instance. The "+" button still opens a new tab.
+- **Projects expanded by default**: All projects with configured terminals are now expanded in the sidebar on startup, showing their terminal list immediately.
+- **Removed "Projects" header title**: The "Projects" label above the project list has been removed for a cleaner sidebar.
+- **Folder icon for projects**: Project icons now show a folder SVG instead of text initials, and the terminal count below the project name has been removed (path is always shown instead).
+- **Removed "Run All" link**: The "Run All" option at the bottom of each terminal sub-list has been removed.
+
 ## [3.3.3] - 2026-02-15
 
 ### Added

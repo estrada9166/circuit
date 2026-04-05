@@ -6,10 +6,11 @@ import {
   runningTerminalNames,
   tabGroups,
   projects,
+  projectBranches,
   setProjects,
   setActiveProjects,
 } from './state';
-import { initSidebar, renderSidebar, setSidebarCallbacks } from './sidebar';
+import { initSidebar, renderSidebar, updateSidebarNotifications, setSidebarCallbacks } from './sidebar';
 import {
   initTerminalUI,
   makeTerminalSession,
@@ -19,6 +20,7 @@ import {
   focusSession,
   removeSession,
   splitSession,
+  splitWithTerminal,
   renderTerminalTabs,
   updateActiveProjects,
   setRenderCallbacks,
@@ -27,6 +29,9 @@ import {
 import { initGitPanel, openGitPanel, closeGitPanel, renderGitTab, setTerminalCallbacks } from './git-panel';
 import { initDialogs, showEditDialog, showRemoveDialog } from './dialogs';
 import { initCommandPalette, openCommandPalette } from './command-palette';
+import { initLogSearch, openLogSearch } from './log-search';
+import { openTerminalSearch } from './terminal-search';
+import { initHistoryOverlay } from './history-overlay';
 import type { PtyCreatedEvent } from '../types';
 
 async function init(): Promise<void> {
@@ -36,6 +41,8 @@ async function init(): Promise<void> {
   initGitPanel();
   initDialogs();
   initCommandPalette(activateGroup);
+  initLogSearch();
+  initHistoryOverlay();
 
   // Wire up cross-module callbacks to avoid circular dependencies
   setRenderCallbacks(renderSidebar, renderGitTab);
@@ -44,6 +51,7 @@ async function init(): Promise<void> {
     openProject: (project) => window.api.openProject(project.name),
     openGitPanel,
     splitSession: (sessionId) => splitSession(sessionId),
+    splitWithTerminal: (groupId, projectName, terminalName) => splitWithTerminal(groupId, projectName, terminalName),
     showEditDialog,
     showRemoveDialog,
     openSingleTerminal: (projectName, terminalName, prefill) => {
@@ -80,7 +88,43 @@ async function init(): Promise<void> {
   ]);
   setProjects(loadedProjects);
   setActiveProjects(active);
+
+  // Pre-populate running terminal state for all projects (they're expanded by default)
+  await Promise.all(
+    loadedProjects
+      .filter(p => p.terminals.length > 0)
+      .map(async (p) => {
+        const names = await window.api.getRunningTerminals(p.name);
+        runningTerminalNames.set(p.name, names);
+      })
+  );
+
+  // Load git branch names for all projects
+  await Promise.all(
+    loadedProjects.map(async (p) => {
+      const branch = await window.api.getBranch(p.path).catch(() => null);
+      if (branch) projectBranches.set(p.name, branch);
+    })
+  );
+
   renderSidebar();
+
+  // Poll branch names every 5 seconds and re-render if anything changed
+  setInterval(async () => {
+    let changed = false;
+    await Promise.all(
+      projects.map(async (p) => {
+        const branch = await window.api.getBranch(p.path).catch(() => null);
+        const prev = projectBranches.get(p.name) ?? null;
+        if (branch !== prev) {
+          if (branch) projectBranches.set(p.name, branch);
+          else projectBranches.delete(p.name);
+          changed = true;
+        }
+      })
+    );
+    if (changed) renderSidebar();
+  }, 5000);
 
   // Set up IPC listeners with cleanup tracking
   const cleanups: (() => void)[] = [];
@@ -99,7 +143,7 @@ async function init(): Promise<void> {
         setTimeout(() => {
           notificationRenderPending = false;
           renderTerminalTabs();
-          renderSidebar();
+          updateSidebarNotifications();
         }, 300);
       }
     }
@@ -132,6 +176,7 @@ async function init(): Promise<void> {
     openCommandPalette();
   }));
 
+
   // New Terminal button
   document.getElementById('btn-new-terminal')?.addEventListener('click', () => {
     window.api.openStandaloneTerminal().catch((err: unknown) => {
@@ -154,9 +199,12 @@ async function init(): Promise<void> {
     <div class="shortcut-row"><span class="shortcut-key">\u2318 \u2190/\u2192</span><span class="shortcut-desc">Switch tab</span></div>
     <div class="shortcut-row"><span class="shortcut-key">\u2318 N</span><span class="shortcut-desc">New project</span></div>
     <div class="shortcut-row"><span class="shortcut-key">\u2318 T</span><span class="shortcut-desc">New terminal</span></div>
+	<div class="shortcut-row"><span class="shortcut-key">\u2318 B</span><span class="shortcut-desc">Toggle sidebar</span></div>
     <div class="shortcut-row"><span class="shortcut-key">\u2318 P</span><span class="shortcut-desc">Command palette</span></div>
     <div class="shortcut-row"><span class="shortcut-key">\u2318 D</span><span class="shortcut-desc">Split pane</span></div>
     <div class="shortcut-row"><span class="shortcut-key">\u2318 K</span><span class="shortcut-desc">Clear terminal</span></div>
+    <div class="shortcut-row"><span class="shortcut-key">\u2318 F</span><span class="shortcut-desc">Find in terminal</span></div>
+    <div class="shortcut-row"><span class="shortcut-key">\u2318 \u21e7 F</span><span class="shortcut-desc">Search terminal history</span></div>
   `;
   document.body.appendChild(shortcutPopup);
 
@@ -190,16 +238,29 @@ async function init(): Promise<void> {
   });
 
   // Keyboard shortcuts
-  document.addEventListener('keydown', (e) => {
-    const mod = e.metaKey || e.ctrlKey;
+   document.addEventListener('keydown', (e) => {
+     const mod = e.metaKey || e.ctrlKey;
 
-    if (!mod) return;
+     if (!mod) return;
 
-    // Cmd/Ctrl+N: open add project dialog
-    if (e.key === 'n') {
-      e.preventDefault();
-      document.getElementById('btn-add')?.click();
-    }
+      // Cmd/Ctrl+B: toggle sidebar
+     if (e.key === 'b') {
+       e.preventDefault();
+       const sidebar = document.querySelector('.sidebar') as HTMLElement;
+       if (sidebar) {
+         sidebar.classList.toggle("hidden");
+         setTimeout(() => {
+           if (window.innerWidth > 400) {
+             window.dispatchEvent(new Event('resize'));
+            }
+          }, 50);
+       }
+      }
+      // Cmd/Ctrl+N: open add project dialog
+     if (e.key === 'n') {
+       e.preventDefault();
+       document.getElementById('btn-add')?.click();
+      }
     // Cmd/Ctrl+T: open standalone terminal
     if (e.key === 't') {
       e.preventDefault();
@@ -218,6 +279,18 @@ async function init(): Promise<void> {
       const focused = focusedSessionId;
       if (focused) splitSession(focused);
     }
+    // Cmd/Ctrl+F: find in terminal
+    if (e.key === 'f' && !e.shiftKey) {
+      e.preventDefault();
+      if (focusedSessionId) openTerminalSearch(focusedSessionId);
+      return;
+    }
+    // Cmd/Ctrl+Shift+F: search terminal history
+    if (e.shiftKey && (e.key === 'f' || e.key === 'F')) {
+      e.preventDefault();
+      openLogSearch();
+      return;
+    }
     // Cmd/Ctrl+K: clear terminal
     if (e.key === 'k') {
       e.preventDefault();
@@ -227,10 +300,13 @@ async function init(): Promise<void> {
         if (session) session.terminal.clear();
       }
     }
-    // Cmd/Ctrl+Left/Right: cycle tabs
+    // Cmd/Ctrl+Left/Right: cycle tabs (only within the active project's visible tabs)
     if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
       e.preventDefault();
-      const ids = [...tabGroups.keys()];
+      const activeProjectName = activeGroupId ? tabGroups.get(activeGroupId)?.projectName : undefined;
+      const ids = [...tabGroups.entries()]
+        .filter(([, g]) => g.projectName === activeProjectName)
+        .map(([id]) => id);
       if (ids.length === 0) return;
       const curIdx = activeGroupId ? ids.indexOf(activeGroupId) : -1;
       let nextIdx: number;

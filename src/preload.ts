@@ -15,6 +15,7 @@ const api: PreloadApi = {
   closeProject: (projectName) => ipcRenderer.invoke(IPC.PROJECT_CLOSE, projectName),
   openSingleTerminal: (projectName: string, terminalName: string, prefill?: boolean) => ipcRenderer.invoke(IPC.PROJECT_OPEN_SINGLE_TERMINAL, projectName, terminalName, prefill),
   splitPane: (ptyId: string) => ipcRenderer.invoke(IPC.PROJECT_SPLIT, ptyId),
+  splitWithTerminal: (projectName: string, terminalName: string) => ipcRenderer.invoke(IPC.PROJECT_SPLIT_WITH_TERMINAL, projectName, terminalName),
   newTerminal: (projectName: string) => ipcRenderer.invoke(IPC.PROJECT_NEW_TERMINAL, projectName),
   getActiveProjects: () => ipcRenderer.invoke(IPC.PROJECT_GET_ACTIVE),
   getRunningTerminals: (projectName: string) => ipcRenderer.invoke(IPC.PROJECT_RUNNING_TERMINALS, projectName),
@@ -60,6 +61,15 @@ const api: PreloadApi = {
   getRepoDiff: (repoPath: string) => {
     return ipcRenderer.invoke(IPC.GIT_REPO_DIFF, repoPath);
   },
+  getBranch: (projectPath: string) => {
+    return ipcRenderer.invoke(IPC.GIT_BRANCH, projectPath);
+  },
+
+  // Log
+  openLogFile: (ptyId: string) => ipcRenderer.invoke(IPC.LOG_OPEN_EXTERNAL, ptyId),
+  readLogChunk: (ptyId: string, offset: number, size: number) => ipcRenderer.invoke(IPC.LOG_READ_CHUNK, ptyId, offset, size),
+  getLogSize: (ptyId: string) => ipcRenderer.invoke(IPC.LOG_GET_SIZE, ptyId),
+  searchLog: (ptyId: string, query: string) => ipcRenderer.invoke(IPC.LOG_SEARCH, ptyId, query),
 
   // Command palette
   onOpenCommandPalette: (callback: () => void) => {

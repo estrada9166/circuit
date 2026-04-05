@@ -1,5 +1,13 @@
 import { html as diff2htmlHtml } from 'diff2html';
 import {
+  ICON_GIT_TAB,
+  ICON_GIT_EMPTY,
+  ICON_GIT_HEADER,
+  ICON_REFRESH,
+  ICON_GIT_CHEVRON,
+  ICON_GIT_FOLDER,
+} from './icons';
+import {
   gitPanelProject,
   gitRepos,
   gitLoading,
@@ -184,12 +192,7 @@ export function renderGitTab(): void {
     gitTab.setAttribute('tabindex', '0');
 
     gitTab.innerHTML = `
-      <svg class="tab-icon" width="12" height="12" viewBox="0 0 24 24" fill="none"
-           stroke="currentColor" stroke-width="2.5" stroke-linecap="round"
-           stroke-linejoin="round">
-        <circle cx="18" cy="18" r="3"/><circle cx="6" cy="6" r="3"/>
-        <path d="M6 21V9a9 9 0 0 0 9 9"/>
-      </svg>
+      ${ICON_GIT_TAB}
       <span class="tab-label">${esc(project.name)}</span>
       <button class="tab-close" title="Close" aria-label="Close git panel">&times;</button>
     `;
@@ -297,12 +300,7 @@ export function renderGitPane(): void {
   if (repos.length === 0) {
     gitPane.innerHTML = `
       <div class="git-center">
-        <svg width="40" height="40" viewBox="0 0 24 24" fill="none"
-             stroke="currentColor" stroke-width="1.5" stroke-linecap="round"
-             stroke-linejoin="round" style="opacity:0.3">
-          <circle cx="18" cy="18" r="3"/><circle cx="6" cy="6" r="3"/>
-          <path d="M6 21V9a9 9 0 0 0 9 9"/>
-        </svg>
+        ${ICON_GIT_EMPTY}
         <p>No git repositories found</p>
       </div>
     `;
@@ -316,12 +314,7 @@ export function renderGitPane(): void {
   let html = `
     <div class="git-header-bar">
       <div class="git-header-left">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none"
-             stroke="currentColor" stroke-width="2" stroke-linecap="round"
-             stroke-linejoin="round">
-          <circle cx="18" cy="18" r="3"/><circle cx="6" cy="6" r="3"/>
-          <path d="M6 21V9a9 9 0 0 0 9 9"/>
-        </svg>
+        ${ICON_GIT_HEADER}
         <span>${repos.length} repo${repos.length !== 1 ? 's' : ''}</span>
         ${totalChanges > 0
           ? `<span class="git-header-changes">${totalChanges} changed file${totalChanges !== 1 ? 's' : ''}</span>`
@@ -329,12 +322,7 @@ export function renderGitPane(): void {
       </div>
       <button class="git-refresh-btn" id="git-refresh" title="Refresh"
               aria-label="Refresh git status">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
-             stroke="currentColor" stroke-width="2" stroke-linecap="round"
-             stroke-linejoin="round">
-          <polyline points="23 4 23 10 17 10"/>
-          <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/>
-        </svg>
+        ${ICON_REFRESH}
       </button>
     </div>
     <div class="git-repos-scroll">
@@ -438,17 +426,9 @@ function renderRepoCard(repo: GitRepoInfo): string {
            aria-expanded="${isExpanded}"
            tabindex="0">
         <div class="git-repo-chevron${isExpanded ? ' open' : ''}">
-          <svg width="10" height="10" viewBox="0 0 24 24" fill="none"
-               stroke="currentColor" stroke-width="3" stroke-linecap="round"
-               stroke-linejoin="round">
-            <polyline points="9 18 15 12 9 6"/>
-          </svg>
+          ${ICON_GIT_CHEVRON}
         </div>
-        <svg class="git-folder-icon" width="16" height="16" viewBox="0 0 24 24"
-             fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
-             stroke-linejoin="round">
-          <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>
-        </svg>
+        ${ICON_GIT_FOLDER}
         <span class="git-repo-name">${esc(repo.name || '.')}</span>
         ${changeCount > 0
           ? `<span class="git-change-count">${changeCount}</span>

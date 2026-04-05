@@ -1,4 +1,4 @@
-import { tabGroups, activeGroupId, notifiedSessionIds, projects } from './state';
+import { tabGroups, activeGroupId, focusedSessionId, notifiedSessionIds, projects } from './state';
 import { esc } from './utils';
 import type { Project } from '../types';
 
@@ -9,13 +9,14 @@ let activateGroupFn: ((groupId: string) => void) | null = null;
 let selectedIndex = 0;
 
 interface PaletteItem {
-  type: 'group' | 'project' | 'terminal';
+  type: 'group' | 'project' | 'terminal' | 'action';
   id: string;
   label: string;
   projectName?: string;
   terminalName?: string;
   hasNotification?: boolean;
   isCurrent?: boolean;
+  isTemporary?: boolean;
 }
 
 function fuzzyMatch(query: string, target: string): boolean {
@@ -81,6 +82,48 @@ function getFilteredItems(query: string): PaletteItem[] {
     }
   }
 
+  // Temporary terminals (standalone, no project)
+  let tempCounter = 0;
+  for (const [id, group] of tabGroups) {
+    if (group.projectName !== '') continue;
+    tempCounter++;
+    const label = `Terminal ${tempCounter}`;
+    if (!query || fuzzyMatch(query, label) || fuzzyMatch(query, 'temporary')) {
+      const hasNotification = group.sessionIds.some(sid => notifiedSessionIds.has(sid));
+      items.push({
+        type: 'group',
+        id,
+        label,
+        projectName: '',
+        hasNotification,
+        isCurrent: id === activeGroupId,
+        isTemporary: true,
+      });
+    }
+  }
+
+  // Action: New Terminal
+  const newTermLabel = 'New Terminal';
+  if (!query || fuzzyMatch(query, newTermLabel)) {
+    items.push({
+      type: 'action',
+      id: 'action:new-terminal',
+      label: newTermLabel,
+    });
+  }
+
+  // Action: Show Full Log (only when a session is focused)
+  if (focusedSessionId) {
+    const logLabel = 'Show Full Log';
+    if (!query || fuzzyMatch(query, logLabel)) {
+      items.push({
+        type: 'action',
+        id: 'action:show-full-log',
+        label: logLabel,
+      });
+    }
+  }
+
   return items;
 }
 
@@ -92,14 +135,26 @@ function renderList(): void {
   if (selectedIndex >= items.length) selectedIndex = Math.max(0, items.length - 1);
 
   list.innerHTML = '';
+  let tempSeparatorAdded = false;
   items.forEach((item, i) => {
+    if (item.isTemporary && !tempSeparatorAdded) {
+      tempSeparatorAdded = true;
+      const sep = document.createElement('div');
+      sep.className = 'command-palette-separator-group';
+      sep.textContent = 'Temporary';
+      list!.appendChild(sep);
+    }
+
     const el = document.createElement('div');
     el.className = 'command-palette-item';
     if (item.isCurrent) el.classList.add('current');
     if (i === selectedIndex) el.classList.add('selected');
 
     let labelHtml: string;
-    if (item.type === 'group') {
+    if (item.isTemporary) {
+      labelHtml = `<span class="command-palette-terminal">${esc(item.label)}</span>`;
+      if (item.hasNotification) labelHtml += '<span class="command-palette-notification"></span>';
+    } else if (item.type === 'group') {
       const colonIdx = item.label.indexOf(':');
       if (colonIdx !== -1) {
         const project = item.label.substring(0, colonIdx);
@@ -113,6 +168,8 @@ function renderList(): void {
       }
     } else if (item.type === 'project') {
       labelHtml = `<span class="command-palette-project">${esc(item.label)}</span><span class="command-palette-badge">project</span>`;
+    } else if (item.type === 'action') {
+      labelHtml = `<span class="command-palette-terminal">${esc(item.label)}</span><span class="command-palette-badge">action</span>`;
     } else {
       labelHtml = `<span class="command-palette-project">${esc(item.projectName!)}</span><span class="command-palette-separator">:</span><span class="command-palette-terminal">${esc(item.terminalName!)}</span><span class="command-palette-badge">open</span>`;
     }
@@ -166,7 +223,13 @@ function selectItem(item: PaletteItem): void {
       window.api.openProject(item.projectName!);
     }
   } else if (item.type === 'terminal') {
-    window.api.openSingleTerminal(item.projectName!, item.terminalName!);
+    window.api.openSingleTerminal(item.projectName!, item.terminalName!, true);
+  } else if (item.type === 'action' && item.id === 'action:new-terminal') {
+    window.api.openStandaloneTerminal();
+  } else if (item.type === 'action' && item.id === 'action:show-full-log') {
+    if (focusedSessionId) {
+      window.api.openLogFile(focusedSessionId);
+    }
   }
 }
 

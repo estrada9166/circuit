@@ -1,8 +1,9 @@
 /** A single named terminal configuration within a project */
 export interface TerminalConfig {
   name: string;
-  commands: string[];
+  command?: string;
   color?: string;
+  cwd?: string;
 }
 
 /** A project with its terminal configurations */
@@ -36,6 +37,12 @@ export interface PtyCreatedEvent {
   id: string;
   projectName: string;
   terminalName: string;
+}
+
+export interface LogSearchResult {
+  lineNumber: number;
+  text: string;
+  offset: number;
 }
 
 export interface GitFileInfo {
@@ -73,6 +80,7 @@ export const IPC = {
   PROJECT_CLOSE: 'project:close',
   PROJECT_OPEN_SINGLE_TERMINAL: 'project:openSingleTerminal',
   PROJECT_SPLIT: 'project:split',
+  PROJECT_SPLIT_WITH_TERMINAL: 'project:splitWithTerminal',
   PROJECT_NEW_TERMINAL: 'project:newTerminal',
   PROJECT_GET_ACTIVE: 'project:getActive',
   PROJECT_RUNNING_TERMINALS: 'project:runningTerminals',
@@ -93,6 +101,13 @@ export const IPC = {
   GIT_SCAN: 'git:scan',
   GIT_FILE_DIFF: 'git:fileDiff',
   GIT_REPO_DIFF: 'git:repoDiff',
+  GIT_BRANCH: 'git:branch',
+
+  // Log
+  LOG_OPEN_EXTERNAL: 'log:openExternal',
+  LOG_READ_CHUNK: 'log:readChunk',
+  LOG_GET_SIZE: 'log:getSize',
+  LOG_SEARCH: 'log:search',
 
   // Platform
   GET_HOMEDIR: 'platform:homedir',
@@ -110,6 +125,7 @@ export interface PreloadApi {
   closeProject(projectName: string): Promise<void>;
   openSingleTerminal(projectName: string, terminalName: string, prefill?: boolean): Promise<PtyCreatedEvent | null>;
   splitPane(ptyId: string): Promise<PtyCreatedEvent | null>;
+  splitWithTerminal(projectName: string, terminalName: string): Promise<PtyCreatedEvent | null>;
   newTerminal(projectName: string): Promise<PtyCreatedEvent | null>;
   getActiveProjects(): Promise<string[]>;
   getRunningTerminals(projectName: string): Promise<string[]>;
@@ -128,6 +144,13 @@ export interface PreloadApi {
   scanGitRepos(projectPath: string): Promise<GitRepoInfo[]>;
   getFileDiff(repoPath: string, filePath: string): Promise<string>;
   getRepoDiff(repoPath: string): Promise<string>;
+  getBranch(projectPath: string): Promise<string | null>;
+
+  // Log
+  openLogFile(ptyId: string): Promise<void>;
+  readLogChunk(ptyId: string, offset: number, size: number): Promise<string>;
+  getLogSize(ptyId: string): Promise<number>;
+  searchLog(ptyId: string, query: string): Promise<LogSearchResult[]>;
 
   // Command palette
   onOpenCommandPalette(callback: () => void): () => void;

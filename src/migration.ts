@@ -11,7 +11,7 @@ function migrateLegacyProject(p: LegacyProject): Project {
     name: p.name,
     path: p.path,
     terminals: p.commands.length > 0
-      ? [{ name: 'default', commands: p.commands }]
+      ? [{ name: 'default', command: p.commands.join(' && ') }]
       : [],
   };
 }
@@ -48,18 +48,26 @@ export function migrateStoreData(raw: unknown): { data: StoreData; wasMigrated: 
     } else {
       const terminals = Array.isArray(item.terminals)
         ? (item.terminals as unknown[])
-            .filter((t): t is { name: string; commands: string[] } =>
+            .filter((t): t is Record<string, unknown> =>
               typeof t === 'object' && t !== null &&
-              typeof (t as Record<string, unknown>).name === 'string' &&
-              Array.isArray((t as Record<string, unknown>).commands)
+              typeof (t as Record<string, unknown>).name === 'string'
             )
             .map(t => {
-              const tc: { name: string; commands: string[]; color?: string } = {
-                name: t.name,
-                commands: t.commands.filter((c: unknown): c is string => typeof c === 'string'),
+              const tc: { name: string; command?: string; color?: string; cwd?: string } = {
+                name: t.name as string,
               };
-              const color = (t as Record<string, unknown>).color;
-              if (typeof color === 'string' && color) tc.color = color;
+              // Migrate old commands[] to single command
+              if (Array.isArray(t.commands)) {
+                const cmds = (t.commands as unknown[]).filter((c): c is string => typeof c === 'string');
+                if (cmds.length > 0) {
+                  tc.command = cmds.join(' && ');
+                  wasMigrated = true;
+                }
+              } else if (typeof t.command === 'string' && t.command) {
+                tc.command = t.command;
+              }
+              if (typeof t.color === 'string' && t.color) tc.color = t.color;
+              if (typeof t.cwd === 'string' && t.cwd) tc.cwd = t.cwd;
               return tc;
             })
         : [];

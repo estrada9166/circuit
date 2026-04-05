@@ -4,9 +4,10 @@ import * as fs from 'fs';
 import * as os from 'os';
 import { Store } from './store';
 import { PtyManager } from './terminal';
-import { findGitRepos, getFileDiff, getFullRepoDiff } from './git';
+import { findGitRepos, getFileDiff, getFullRepoDiff, getBranch } from './git';
 import { IPC } from './types';
 import type { WindowState } from './types';
+import { TerminalLogger } from './terminal-logger';
 
 const SIDEBAR_WIDTH = 280;
 const WINDOW_STATE_FILE = path.join(os.homedir(), '.iterm-projects-window.json');
@@ -14,6 +15,8 @@ const WINDOW_STATE_FILE = path.join(os.homedir(), '.iterm-projects-window.json')
 let mainWindow: BrowserWindow | null = null;
 const store = new Store();
 const ptyManager = new PtyManager();
+const logDir = path.join(app.getPath('userData'), 'terminal-logs');
+const terminalLogger = new TerminalLogger(logDir);
 
 // ---- Single instance lock ----
 const gotLock = app.requestSingleInstanceLock();
@@ -206,7 +209,10 @@ function createWindow(): void {
   // Save window state on changes (debounced for resize/move, immediate on close)
   mainWindow.on('resize', saveWindowState);
   mainWindow.on('move', saveWindowState);
-  mainWindow.on('close', saveWindowStateNow);
+  mainWindow.on('close', (event) => {
+    saveWindowStateNow();
+    app.quit();
+   });
 
   // ---- Security: restrict navigation and new windows ----
   mainWindow.webContents.on('will-navigate', (event) => {
@@ -244,6 +250,8 @@ app.whenReady().then(() => {
   // doesn't race and render the empty state incorrectly.
   store.load();
   createMenu();
+  terminalLogger.cleanOldLogs(7);
+  ptyManager.setLogger(terminalLogger);
 
   // ---- Platform handlers (synchronous) ----
   ipcMain.on(IPC.GET_HOMEDIR, (event) => {
@@ -326,9 +334,9 @@ app.whenReady().then(() => {
     if (!project) return null;
 
     const termConfig = project.terminals.find(t => t.name === terminalName);
-    const commands = termConfig?.commands ?? [];
+    const cwd = termConfig?.cwd ? path.resolve(project.path, termConfig.cwd) : project.path;
 
-    const id = ptyManager.openSingleTerminal(projectName, project.path, terminalName, commands, prefill === true);
+    const id = ptyManager.openSingleTerminal(projectName, cwd, terminalName, termConfig?.command, prefill === true);
 
     mainWindow?.webContents.send(IPC.TERMINAL_CREATED, {
       id,
@@ -363,6 +371,19 @@ app.whenReady().then(() => {
     return ptyManager.getRunningTerminalNames(projectName);
   });
 
+  ipcMain.handle(IPC.PROJECT_SPLIT_WITH_TERMINAL, (_, projectName: unknown, terminalName: unknown) => {
+    if (typeof projectName !== 'string' || typeof terminalName !== 'string') {
+      throw new Error('Project name and terminal name must be strings');
+    }
+    const project = store.projects.find(p => p.name === projectName);
+    if (!project) return null;
+
+    const termConfig = project.terminals.find(t => t.name === terminalName);
+    const cwd = termConfig?.cwd ? path.resolve(project.path, termConfig.cwd) : project.path;
+    const id = ptyManager.openSingleTerminal(projectName, cwd, terminalName, termConfig?.command, true);
+    return { id, projectName, terminalName };
+  });
+
   ipcMain.handle(IPC.PROJECT_SPLIT, (_, ptyId: unknown) => {
     if (typeof ptyId !== 'string') throw new Error('PTY ID must be a string');
     const newId = ptyManager.split(ptyId);
@@ -376,8 +397,8 @@ app.whenReady().then(() => {
   // ---- Terminal IPC ----
 
   ipcMain.handle(IPC.TERMINAL_OPEN_STANDALONE, () => {
-    const id = ptyManager.create('Terminal', 'shell', os.homedir(), []);
-    const event = { id, projectName: 'Terminal', terminalName: 'shell' };
+    const id = ptyManager.create('', 'shell', os.homedir());
+    const event = { id, projectName: '', terminalName: 'shell' };
     mainWindow?.webContents.send(IPC.TERMINAL_CREATED, event);
     return event;
   });
@@ -426,11 +447,45 @@ app.whenReady().then(() => {
     return getFileDiff(repoPath, filePath, allowedRoot);
   });
 
+  ipcMain.handle(IPC.GIT_BRANCH, async (_, projectPath: unknown) => {
+    if (typeof projectPath !== 'string') throw new Error('Path must be a string');
+    const project = store.projects.find(p => path.resolve(p.path) === path.resolve(projectPath));
+    if (!project) throw new Error('Path does not match any project');
+    return getBranch(projectPath);
+  });
+
   ipcMain.handle(IPC.GIT_REPO_DIFF, async (_, repoPath: unknown) => {
     if (typeof repoPath !== 'string') throw new Error('Path must be a string');
     const allowedRoot = getProjectPathForRepo(repoPath);
     if (!allowedRoot) throw new Error('Repository path not within any project');
     return getFullRepoDiff(repoPath, allowedRoot);
+  });
+
+  // ---- Log handlers ----
+
+  ipcMain.handle(IPC.LOG_OPEN_EXTERNAL, (_, ptyId: unknown) => {
+    if (typeof ptyId !== 'string') throw new Error('PTY ID must be a string');
+    const logPath = terminalLogger.getLogPath(ptyId);
+    shell.openPath(logPath);
+  });
+
+  ipcMain.handle(IPC.LOG_READ_CHUNK, (_, ptyId: unknown, offset: unknown, size: unknown) => {
+    if (typeof ptyId !== 'string' || typeof offset !== 'number' || typeof size !== 'number') {
+      throw new Error('Invalid arguments');
+    }
+    return terminalLogger.readChunk(ptyId, offset, size);
+  });
+
+  ipcMain.handle(IPC.LOG_GET_SIZE, (_, ptyId: unknown) => {
+    if (typeof ptyId !== 'string') throw new Error('PTY ID must be a string');
+    return terminalLogger.getLogSize(ptyId);
+  });
+
+  ipcMain.handle(IPC.LOG_SEARCH, (_, ptyId: unknown, query: unknown) => {
+    if (typeof ptyId !== 'string' || typeof query !== 'string') {
+      throw new Error('Invalid arguments');
+    }
+    return terminalLogger.search(ptyId, query);
   });
 
   createWindow();
@@ -440,11 +495,9 @@ app.on('before-quit', () => {
   ptyManager.killAll();
 });
 
-// macOS: keep app running when window closed, re-create on dock click
+// Exit when all windows are closed on any platform
 app.on('window-all-closed', () => {
-  if (process.platform !== 'darwin') {
-    app.quit();
-  }
+  app.quit();
 });
 
 app.on('activate', () => {

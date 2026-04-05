@@ -69,46 +69,18 @@
       background: rgba(28, 28, 30, 0.95);
     }
 
+    .sidebar.hidden {
+      display: none !important;
+      width: 0 !important;
+      min-width: 0 !important;
+      max-width: 0 !important;
+    }
+
     /* ── Drag region (title bar area) ── */
     .drag-region {
       -webkit-app-region: drag;
       height: 38px;
       flex-shrink: 0;
-    }
-
-    /* ── Header ── */
-    .header {
-      padding: 0 16px 12px;
-      flex-shrink: 0;
-      display: flex;
-      align-items: center;
-      gap: 10px;
-    }
-
-    .header-logo {
-      width: 28px;
-      height: 28px;
-      border-radius: 7px;
-      background: linear-gradient(135deg, var(--accent), #bf5af2);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      flex-shrink: 0;
-      box-shadow: 0 2px 8px rgba(10, 132, 255, 0.3);
-    }
-
-    .header-logo svg {
-      width: 16px;
-      height: 16px;
-      color: #fff;
-    }
-
-    .header h1 {
-      font-size: 13px;
-      font-weight: 600;
-      color: var(--text-secondary);
-      text-transform: uppercase;
-      letter-spacing: 0.8px;
     }
 
     /* ── Project list ── */
@@ -159,20 +131,46 @@
       background: var(--bg-hover);
     }
 
-    /* ── Chevron ── */
-    .project-chevron {
-      width: 14px;
-      height: 14px;
-      flex-shrink: 0;
+    /* ── Folder icon chevron overlay ── */
+    .icon-chevron {
+      position: absolute;
+      inset: 0;
       display: flex;
       align-items: center;
       justify-content: center;
-      color: var(--text-tertiary);
-      transition: transform 0.15s ease;
+      opacity: 0;
+      transition: opacity 0.12s;
+      color: var(--text-secondary);
     }
 
-    .project-chevron.open {
+    .icon-chevron.open {
       transform: rotate(90deg);
+    }
+
+    .project-row:hover .project-icon.has-terminals > svg {
+      opacity: 0;
+    }
+
+    .project-row:hover .project-icon.has-terminals .icon-chevron {
+      opacity: 1;
+    }
+
+    /* ── Temporary section ── */
+    .temporary-section {
+      list-style: none;
+      margin-top: 4px;
+      border-top: 1px solid rgba(255, 255, 255, 0.06);
+      padding-top: 4px;
+    }
+
+    .temporary-header {
+      font-size: 10px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.6px;
+      color: var(--text-tertiary);
+      padding: 4px 12px 2px;
+      font-style: italic;
     }
 
     /* ── Terminal sub-list ── */
@@ -186,7 +184,7 @@
       display: flex;
       align-items: center;
       gap: 8px;
-      padding: 5px 10px 5px 36px;
+      padding: 5px 10px 5px 20px;
       font-size: 12px;
       color: var(--text-secondary);
       cursor: pointer;
@@ -234,6 +232,31 @@
       background: var(--bg-active-dot);
       flex-shrink: 0;
       box-shadow: 0 0 4px rgba(50, 215, 75, 0.4);
+    }
+
+    .terminal-sub-split {
+      width: 18px;
+      height: 18px;
+      border: none;
+      border-radius: 4px;
+      background: transparent;
+      color: var(--text-tertiary);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      opacity: 0;
+      transition: all 0.1s;
+    }
+
+    .terminal-sub-item:hover .terminal-sub-split {
+      opacity: 1;
+    }
+
+    .terminal-sub-split:hover {
+      background: rgba(255, 255, 255, 0.1);
+      color: var(--accent);
     }
 
     .terminal-sub-new {
@@ -301,6 +324,27 @@
       color: var(--accent);
     }
 
+    .terminal-sub-run {
+      color: var(--text-tertiary);
+      background: none;
+      border: none;
+      padding: 2px;
+      cursor: pointer;
+      opacity: 0;
+      transition: opacity 0.1s;
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+    }
+
+    .terminal-sub-item:hover .terminal-sub-run {
+      opacity: 1;
+    }
+
+    .terminal-sub-run:hover {
+      color: var(--accent);
+    }
+
     .terminal-sub-item.focused {
       background: var(--bg-hover);
     }
@@ -333,18 +377,22 @@
     }
 
     .project-icon {
-      width: 32px;
-      height: 32px;
-      border-radius: 8px;
-      background: rgba(255, 255, 255, 0.06);
+      flex-shrink: 0;
+      position: relative;
+      width: 16px;
+      height: 16px;
       display: flex;
       align-items: center;
       justify-content: center;
-      flex-shrink: 0;
-      font-size: 13px;
-      font-weight: 600;
-      color: var(--accent);
-      letter-spacing: 0.5px;
+      color: var(--text-secondary);
+    }
+
+    .project-icon.has-terminals {
+      cursor: pointer;
+    }
+
+    .project-icon > svg {
+      transition: opacity 0.12s;
     }
 
     .project-details {
@@ -719,6 +767,10 @@
       font-family: inherit;
       background: #2c2c2e;
       color: var(--text);
+      margin: auto;
+      position: fixed;
+      inset: 0;
+      height: fit-content;
     }
 
     dialog::backdrop {
@@ -910,7 +962,8 @@
     .edit-terminal-entry .color-swatches { margin: 4px 0; }
 
     .terminal-name-input { flex: 1; margin-right: 6px; }
-    .terminal-commands-input { min-height: 40px !important; }
+    .terminal-cwd-input { width: 100%; margin-top: 4px; font-size: 11px; opacity: 0.8; }
+    .terminal-command-input { width: 100%; margin-top: 4px; }
     .btn-remove-terminal { padding: 2px 6px !important; font-size: 14px !important; line-height: 1; }
     .btn-add-term { font-size: 11px; margin-top: 2px; }
 
@@ -1518,6 +1571,17 @@
       margin: 0 2px;
     }
 
+    .command-palette-separator-group {
+      padding: 6px 12px 4px;
+      font-size: 10px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.6px;
+      color: var(--text-tertiary);
+      border-top: 1px solid rgba(255, 255, 255, 0.06);
+      margin-top: 2px;
+    }
+
     .command-palette-terminal {
       color: var(--text);
     }
@@ -1545,6 +1609,243 @@
       background: rgba(255, 255, 255, 0.06);
       padding: 2px 8px;
       border-radius: 4px;
+    }
+
+    /* ── Inline terminal search bar (Cmd+F) ── */
+
+    .terminal-search-bar {
+      position: absolute;
+      top: 8px;
+      right: 24px;
+      z-index: 5;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      padding: 4px 8px;
+      background: #2c2c2e;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+    }
+
+    .terminal-search-bar[hidden] {
+      display: none;
+    }
+
+    .terminal-search-input {
+      width: 180px;
+      background: transparent;
+      border: none;
+      color: var(--text);
+      font-size: 13px;
+      font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, sans-serif;
+      outline: none;
+    }
+
+    .terminal-search-input::placeholder {
+      color: var(--text-tertiary);
+    }
+
+    .terminal-search-count {
+      font-size: 11px;
+      color: var(--text-tertiary);
+      white-space: nowrap;
+      min-width: 48px;
+      text-align: right;
+    }
+
+    .terminal-search-nav {
+      background: none;
+      border: none;
+      color: var(--text-tertiary);
+      cursor: pointer;
+      padding: 2px 4px;
+      border-radius: 3px;
+      font-size: 13px;
+      line-height: 1;
+    }
+
+    .terminal-search-nav:hover {
+      background: var(--bg-hover);
+      color: var(--text);
+    }
+
+    /* ── History overlay (Phase 2 — infinite scroll) ── */
+
+    .history-overlay {
+      position: absolute;
+      inset: 0;
+      z-index: 10;
+      background: #1c1c1e;
+      display: flex;
+      flex-direction: column;
+      outline: none;
+    }
+
+    .history-content {
+      flex: 1;
+      overflow-y: auto;
+      padding: 8px;
+      font-family: "SF Mono", Menlo, monospace;
+      font-size: 13px;
+      line-height: 1.4;
+      color: #f5f5f7;
+      white-space: pre-wrap;
+      word-break: break-all;
+    }
+
+    .history-separator {
+      padding: 4px 8px;
+      text-align: center;
+      font-size: 11px;
+      color: var(--text-tertiary);
+      border-top: 1px solid var(--border);
+      background: rgba(255, 255, 255, 0.03);
+      flex-shrink: 0;
+    }
+
+    .history-search-bar {
+      display: flex;
+      padding: 6px 8px;
+      border-bottom: 1px solid var(--border);
+      background: #2c2c2e;
+    }
+
+    .history-search-bar[hidden] {
+      display: none;
+    }
+
+    .history-search-input {
+      flex: 1;
+      background: transparent;
+      border: none;
+      color: var(--text);
+      font-size: 13px;
+      font-family: inherit;
+      outline: none;
+    }
+
+    .history-search-input::placeholder {
+      color: var(--text-tertiary);
+    }
+
+    .history-highlight {
+      background: rgba(255, 213, 0, 0.3);
+      color: var(--text);
+      border-radius: 2px;
+    }
+
+    .history-loading {
+      text-align: center;
+      padding: 12px;
+      color: var(--text-tertiary);
+      font-size: 12px;
+    }
+
+    /* ── Log search overlay ── */
+
+    .log-search-overlay {
+      position: fixed;
+      inset: 0;
+      z-index: 1000;
+      background: rgba(0, 0, 0, 0.5);
+      backdrop-filter: blur(4px);
+      -webkit-backdrop-filter: blur(4px);
+      display: flex;
+      justify-content: center;
+      padding-top: 20vh;
+    }
+
+    .log-search-overlay[hidden] {
+      display: none;
+    }
+
+    .log-search-container {
+      width: 640px;
+      max-width: 90vw;
+      background: #2c2c2e;
+      border-radius: 14px;
+      box-shadow: var(--shadow-dialog);
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      max-height: 500px;
+    }
+
+    .log-search-header {
+      display: flex;
+      align-items: center;
+      padding: 0 16px;
+      border-bottom: 1px solid var(--border);
+      gap: 8px;
+    }
+
+    .log-search-input {
+      flex: 1;
+      background: transparent;
+      border: none;
+      color: var(--text);
+      font-size: 15px;
+      font-family: inherit;
+      padding: 14px 0;
+      outline: none;
+    }
+
+    .log-search-input::placeholder {
+      color: var(--text-tertiary);
+    }
+
+    .log-search-status {
+      font-size: 12px;
+      color: var(--text-tertiary);
+      white-space: nowrap;
+    }
+
+    .log-search-results {
+      overflow-y: auto;
+      flex: 1;
+    }
+
+    .log-search-result {
+      display: flex;
+      align-items: baseline;
+      gap: 12px;
+      padding: 6px 16px;
+      font-family: "SF Mono", Menlo, monospace;
+      font-size: 12px;
+      line-height: 1.5;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+    }
+
+    .log-search-result:hover {
+      background: var(--bg-hover);
+    }
+
+    .log-search-line-num {
+      color: var(--text-tertiary);
+      min-width: 48px;
+      text-align: right;
+      flex-shrink: 0;
+    }
+
+    .log-search-text {
+      color: var(--text-secondary);
+      white-space: pre;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .log-search-highlight {
+      background: rgba(255, 213, 0, 0.3);
+      color: var(--text);
+      border-radius: 2px;
+    }
+
+    .log-search-empty {
+      padding: 24px 16px;
+      text-align: center;
+      color: var(--text-tertiary);
+      font-size: 13px;
     }
 
     /* ── Shortcuts button ── */
@@ -1657,23 +1958,11 @@
     <nav class="sidebar" role="navigation" aria-label="Projects">
       <div class="drag-region"></div>
 
-      <div class="header">
-        <div class="header-logo">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-            <polyline points="4 17 10 11 4 5"/>
-            <line x1="12" y1="19" x2="20" y2="19"/>
-          </svg>
-        </div>
-        <h1>Projects</h1>
-      </div>
-
       <ul class="project-list" id="project-list" role="listbox" aria-label="Project list"></ul>
 
       <div class="empty-state" id="empty-state" hidden>
-        <svg viewBox="0 0 24 24">
-          <rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect>
-          <line x1="8" y1="21" x2="16" y2="21"></line>
-          <line x1="12" y1="17" x2="12" y2="21"></line>
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <rect width="20" height="14" x="2" y="3" rx="2"/><line x1="8" x2="16" y1="21" y2="21"/><line x1="12" x2="12" y1="17" y2="21"/>
         </svg>
         <p>No projects yet.<br>Add one to get started.</p>
       </div>
@@ -1682,7 +1971,7 @@
         <button class="add-btn" id="btn-new-terminal">+ New Terminal</button>
         <button class="add-btn" id="btn-add">+ New Project</button>
         <button class="shortcuts-btn" id="btn-shortcuts" title="Keyboard Shortcuts">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="M6 8h.01M10 8h.01M14 8h.01M18 8h.01M8 12h.01M12 12h.01M16 12h.01M8 16h8"/></svg>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 8h.01"/><path d="M12 12h.01"/><path d="M14 8h.01"/><path d="M16 12h.01"/><path d="M18 8h.01"/><path d="M6 8h.01"/><path d="M7 16h10"/><path d="M8 12h.01"/><rect width="20" height="16" x="2" y="4" rx="2"/></svg>
           Shortcuts
         </button>
       </div>

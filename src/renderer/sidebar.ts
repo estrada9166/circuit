@@ -1,5 +1,5 @@
-import { projects, activeProjects, activeGroupId, sessions, tabGroups, focusedSessionId, notifiedSessionIds, expandedProjectNames, runningTerminalNames } from './state';
-import { esc, initials, shortenPath } from './utils';
+import { projects, activeProjects, activeGroupId, sessions, tabGroups, focusedSessionId, notifiedSessionIds, collapsedProjectNames, runningTerminalNames, projectBranches } from './state';
+import { esc } from './utils';
 import type { Project } from '../types';
 
 // ---- Callback types (avoids circular deps) ----
@@ -7,6 +7,7 @@ import type { Project } from '../types';
 type OpenProjectFn = (project: Project) => void;
 type OpenGitPanelFn = (project: Project) => void;
 type SplitSessionFn = (sessionId: string) => void;
+type SplitWithTerminalFn = (groupId: string, projectName: string, terminalName: string) => void;
 type ShowEditDialogFn = (project: Project) => void;
 type ShowRemoveDialogFn = (project: Project) => void;
 type OpenSingleTerminalFn = (projectName: string, terminalName: string, prefill?: boolean) => void;
@@ -22,6 +23,7 @@ let callbacks: {
   openProject: OpenProjectFn;
   openGitPanel: OpenGitPanelFn;
   splitSession: SplitSessionFn;
+  splitWithTerminal: SplitWithTerminalFn;
   showEditDialog: ShowEditDialogFn;
   showRemoveDialog: ShowRemoveDialogFn;
   openSingleTerminal: OpenSingleTerminalFn;
@@ -31,7 +33,7 @@ let callbacks: {
   focusSession: FocusSessionFn;
   render: RenderFn;
   refreshRunningTerminals: (projectName: string) => Promise<void>;
-  updateProject: (projectName: string, fields: { terminals: { name: string; commands: string[]; color?: string }[] }) => Promise<void>;
+  updateProject: (projectName: string, fields: { terminals: { name: string; command?: string; color?: string }[] }) => Promise<void>;
   reorderProjects: ReorderProjectsFn;
 } | null = null;
 
@@ -54,27 +56,21 @@ function clearDropIndicators(): void {
   });
 }
 
-// ---- SVG icons ----
+// ---- Icons (lucide) ----
 
-const SVG_GIT = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="18" r="3"/><circle cx="6" cy="6" r="3"/><path d="M6 21V9a9 9 0 0 0 9 9"/></svg>';
-
-const SVG_NEW_TERM = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>';
-
-const SVG_SPLIT = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="12" y1="3" x2="12" y2="21"/></svg>';
-
-const SVG_EDIT = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>';
-
-const SVG_REMOVE = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>';
-
-const SVG_CHEVRON = '<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>';
-
-const SVG_TERMINAL = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></svg>';
-
-const SVG_PLAY = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"/></svg>';
-
-const SVG_SMALL_PLUS = '<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>';
-
-const SVG_SMALL_X = '<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>';
+import {
+  ICON_GIT,
+  ICON_EDIT,
+  ICON_REMOVE,
+  ICON_CHEVRON,
+  ICON_FOLDER_CLOSED,
+  ICON_FOLDER_OPEN,
+  ICON_TERMINAL,
+  ICON_SMALL_PLUS,
+  ICON_SMALL_X,
+  ICON_SMALL_SPLIT,
+  ICON_PLAY,
+} from './icons';
 
 // ---- Init ----
 
@@ -122,8 +118,8 @@ export function renderSidebar(): void {
 
   // Prune stale state for removed projects
   const projectNames = new Set(projects.map(p => p.name));
-  for (const name of expandedProjectNames) {
-    if (!projectNames.has(name)) expandedProjectNames.delete(name);
+  for (const name of collapsedProjectNames) {
+    if (!projectNames.has(name)) collapsedProjectNames.delete(name);
   }
   for (const name of runningTerminalNames.keys()) {
     if (!projectNames.has(name)) runningTerminalNames.delete(name);
@@ -156,14 +152,9 @@ export function renderSidebar(): void {
       li.classList.add('selected');
     }
 
-    const isExpanded = expandedProjectNames.has(project.name);
+    const hasTerminals = project.terminals.length > 0;
+    const isExpanded = hasTerminals && !collapsedProjectNames.has(project.name);
     if (isExpanded) li.classList.add('expanded');
-
-    const termCount = project.terminals.length;
-    const hasTerminals = termCount > 0;
-    const meta = hasTerminals
-      ? `${termCount} terminal${termCount > 1 ? 's' : ''}`
-      : shortenPath(project.path);
 
     const running = runningTerminalNames.get(project.name) || [];
 
@@ -171,24 +162,25 @@ export function renderSidebar(): void {
     const projectSessions = sessionsByProject.get(project.name) || [];
     const hasProjectNotification = projectSessions.some(s => notifiedSessionIds.has(s.id));
 
-    const iconStyle = project.color ? ` style="background: ${esc(project.color)}; color: #fff"` : '';
+    const iconStyle = project.color ? ` style="color: ${esc(project.color)}"` : '';
+    const branch = projectBranches.get(project.name);
 
     li.innerHTML = `
       <div class="project-row">
-        ${hasTerminals ? `<div class="project-chevron${isExpanded ? ' open' : ''}">${SVG_CHEVRON}</div>` : ''}
-        <div class="project-icon"${iconStyle}>${esc(initials(project.name))}</div>
+        <div class="project-icon${hasTerminals ? ' has-terminals' : ''}"${iconStyle}>
+          ${isExpanded ? ICON_FOLDER_OPEN : ICON_FOLDER_CLOSED}
+          ${hasTerminals ? `<span class="icon-chevron${isExpanded ? ' open' : ''}">${ICON_CHEVRON}</span>` : ''}
+        </div>
         <div class="project-details">
           <div class="project-name">${esc(project.name)}</div>
-          <div class="project-meta">${esc(meta)}</div>
+          ${branch ? `<div class="project-meta">${esc(branch)}</div>` : ''}
         </div>
         ${hasProjectNotification ? '<div class="notification-indicator"></div>' : ''}
         ${isActive && !hasProjectNotification ? '<div class="active-indicator"></div>' : ''}
         <div class="project-actions">
-          <button class="action-btn btn-git" title="Git Status">${SVG_GIT}</button>
-          <button class="action-btn btn-new-term" title="New Terminal">${SVG_NEW_TERM}</button>
-          ${isActive ? `<button class="action-btn btn-split" title="Split Pane">${SVG_SPLIT}</button>` : ''}
-          <button class="action-btn btn-edit" title="Edit">${SVG_EDIT}</button>
-          <button class="action-btn danger btn-remove" title="Remove">${SVG_REMOVE}</button>
+          <button class="action-btn btn-git" title="Git Status">${ICON_GIT}</button>
+          <button class="action-btn btn-edit" title="Edit">${ICON_EDIT}</button>
+          <button class="action-btn danger btn-remove" title="Remove">${ICON_REMOVE}</button>
         </div>
       </div>
     `;
@@ -211,42 +203,73 @@ export function renderSidebar(): void {
           + (isRunning ? ' running' : '')
           + (isFocused ? ' focused' : '')
           + (termHasNotification ? ' has-notification' : '');
+        subItem.dataset.terminalName = term.name;
         subItem.innerHTML = `
-          <span class="terminal-sub-icon">${SVG_TERMINAL}</span>
+          <span class="terminal-sub-icon">${ICON_TERMINAL}</span>
           <span class="terminal-sub-name">${esc(term.name)}</span>
           ${termHasNotification ? '<span class="terminal-sub-notification"></span>' : (isRunning ? '<span class="terminal-sub-running"></span>' : '')}
-          <button class="terminal-sub-new" title="Open new tab">${SVG_SMALL_PLUS}</button>
-          <button class="terminal-sub-delete" title="Remove terminal">${SVG_SMALL_X}</button>
-          <span class="terminal-sub-action">${isRunning ? 'Focus' : 'Run'}</span>
+          <button class="terminal-sub-split" title="Open as split pane">${ICON_SMALL_SPLIT}</button>
+          <button class="terminal-sub-new" title="Open new tab">${ICON_SMALL_PLUS}</button>
+          <button class="terminal-sub-delete" title="Remove terminal">${ICON_SMALL_X}</button>
+          ${isRunning
+            ? '<span class="terminal-sub-action">Focus</span>'
+            : `<button class="terminal-sub-run" title="Run">${ICON_PLAY}</button>`}
         `;
 
-        // Click row: focus if running, launch if not
+        // Click row: focus if running, open with prefill if not
         subItem.addEventListener('click', (e) => {
+          if ((e.target as HTMLElement).closest('.terminal-sub-split')) return;
           if ((e.target as HTMLElement).closest('.terminal-sub-new')) return;
           if ((e.target as HTMLElement).closest('.terminal-sub-delete')) return;
+          if ((e.target as HTMLElement).closest('.terminal-sub-run')) return;
           e.stopPropagation();
           if (!callbacks) return;
-          if (isRunning) {
-            const session = [...sessions.values()].find(
-              s => s.projectName === project.name && s.terminalName === term.name
-            );
-            if (session) {
-              const group = tabGroups.get(session.groupId);
-              if (group) {
-                callbacks.closeGitPanel();
-                callbacks.activateGroup(group.id);
-                callbacks.focusSession(session.id);
-              }
+          const liveSession = [...sessions.values()].find(
+            s => s.projectName === project.name && s.terminalName === term.name
+          );
+          if (liveSession) {
+            const group = tabGroups.get(liveSession.groupId);
+            if (group) {
+              callbacks.closeGitPanel();
+              callbacks.activateGroup(group.id);
+              callbacks.focusSession(liveSession.id);
             }
           } else {
+            callbacks.openSingleTerminal(project.name, term.name, true);
+          }
+        });
+
+        // Run button: open terminal and execute command immediately
+        const runBtn = subItem.querySelector('.terminal-sub-run');
+        if (runBtn) {
+          runBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            if (!callbacks) return;
+            callbacks.openSingleTerminal(project.name, term.name, false);
+          });
+        }
+
+        // Split button: open this terminal as a split pane in the active group for this project
+        subItem.querySelector('.terminal-sub-split')!.addEventListener('click', (e) => {
+          e.stopPropagation();
+          if (!callbacks) return;
+          // Find the active group if it belongs to this project, otherwise fall back to the first group
+          const activeGroup = activeGroupId ? tabGroups.get(activeGroupId) : null;
+          const projectGroup = (activeGroup && activeGroup.projectName === project.name)
+            ? activeGroup
+            : [...tabGroups.values()].find(g => g.projectName === project.name);
+          if (projectGroup) {
+            callbacks.splitWithTerminal(projectGroup.id, project.name, term.name);
+          } else {
+            // No running group for this project — open as a new tab
             callbacks.openSingleTerminal(project.name, term.name, false);
           }
         });
 
-        // "+" button: always open a new tab for this terminal
+        // "+" button: open a new tab for this terminal, prefilled but not executed
         subItem.querySelector('.terminal-sub-new')!.addEventListener('click', (e) => {
           e.stopPropagation();
-          if (callbacks) callbacks.openSingleTerminal(project.name, term.name, false);
+          if (callbacks) callbacks.openSingleTerminal(project.name, term.name, true);
         });
 
         // Delete button: remove this terminal config from the project
@@ -260,33 +283,20 @@ export function renderSidebar(): void {
         subList.appendChild(subItem);
       }
 
-      // "Run All" button
-      const runAllItem = document.createElement('li');
-      runAllItem.className = 'terminal-sub-item run-all';
-      runAllItem.innerHTML = `
-        <span class="terminal-sub-icon">${SVG_PLAY}</span>
-        <span class="terminal-sub-name">Run All</span>
-      `;
-      runAllItem.addEventListener('click', (e) => {
-        e.stopPropagation();
-        if (callbacks) window.api.openProject(project.name);
-      });
-      subList.appendChild(runAllItem);
-
       li.appendChild(subList);
     }
 
-    // Chevron click: toggle expand/collapse terminal list
-    const chevronEl = li.querySelector('.project-chevron');
-    if (chevronEl) {
-      chevronEl.addEventListener('click', (e) => {
+    // Folder icon click: toggle expand/collapse terminal list
+    if (hasTerminals) {
+      const iconEl = li.querySelector('.project-icon')!;
+      iconEl.addEventListener('click', (e) => {
         e.stopPropagation();
         if (!callbacks) return;
-        if (expandedProjectNames.has(project.name)) {
-          expandedProjectNames.delete(project.name);
-        } else {
-          expandedProjectNames.add(project.name);
+        if (collapsedProjectNames.has(project.name)) {
+          collapsedProjectNames.delete(project.name);
           callbacks.refreshRunningTerminals(project.name);
+        } else {
+          collapsedProjectNames.add(project.name);
         }
         callbacks.render();
       });
@@ -296,15 +306,8 @@ export function renderSidebar(): void {
     const projectRow = li.querySelector('.project-row')!;
     projectRow.addEventListener('click', (e) => {
       if ((e.target as HTMLElement).closest('.project-actions')) return;
-      if ((e.target as HTMLElement).closest('.project-chevron')) return;
+      if ((e.target as HTMLElement).closest('.project-icon')) return;
       if (!callbacks) return;
-
-      // Expand terminal list if project has configured terminals
-      if (hasTerminals && !expandedProjectNames.has(project.name)) {
-        expandedProjectNames.add(project.name);
-        callbacks.refreshRunningTerminals(project.name);
-        callbacks.render();
-      }
 
       // If terminals already running, focus the first one
       const existingGroup = [...tabGroups.values()].find(g => g.projectName === project.name);
@@ -323,22 +326,6 @@ export function renderSidebar(): void {
       e.stopPropagation();
       if (callbacks) callbacks.openGitPanel(project);
     });
-
-    li.querySelector('.btn-new-term')!.addEventListener('click', (e) => {
-      e.stopPropagation();
-      if (callbacks) callbacks.newTerminal(project.name);
-    });
-
-    const splitBtn = li.querySelector('.btn-split');
-    if (splitBtn) {
-      splitBtn.addEventListener('click', (e) => {
-        e.stopPropagation();
-        if (!callbacks) return;
-        const pSessions = projectSessions;
-        const target = pSessions.find(s => s.id === focusedSessionId) || pSessions[0];
-        if (target) callbacks.splitSession(target.id);
-      });
-    }
 
     li.querySelector('.btn-edit')!.addEventListener('click', (e) => {
       e.stopPropagation();
@@ -403,4 +390,104 @@ export function renderSidebar(): void {
 
     list.appendChild(li);
   });
+
+  // Temporary terminals section (standalone terminals with no project)
+  const temporaryGroups = [...tabGroups.values()].filter(g => g.projectName === '');
+  if (temporaryGroups.length > 0) {
+    const section = document.createElement('li');
+    section.className = 'temporary-section';
+
+    const subList = document.createElement('ul');
+    subList.className = 'terminal-sub-list';
+
+    for (const group of temporaryGroups) {
+      const isActive = activeGroupId ? tabGroups.get(activeGroupId)?.projectName === '' && group.id === activeGroupId : false;
+      const item = document.createElement('li');
+      item.className = 'terminal-sub-item' + (isActive ? ' focused' : '');
+      item.innerHTML = `
+        <span class="terminal-sub-icon">${ICON_TERMINAL}</span>
+        <span class="terminal-sub-name">${esc(group.label)}</span>
+      `;
+      item.addEventListener('click', () => {
+        if (!callbacks) return;
+        callbacks.closeGitPanel();
+        callbacks.activateGroup(group.id);
+      });
+      subList.appendChild(item);
+    }
+
+    section.appendChild(subList);
+    list.appendChild(section);
+  }
+}
+
+// ---- Targeted notification update (avoids full DOM rebuild on terminal output) ----
+
+export function updateSidebarNotifications(): void {
+  // Build session-by-project index
+  const sessionsByProject = new Map<string, typeof sessions extends Map<string, infer V> ? V[] : never>();
+  for (const [, session] of sessions) {
+    let arr = sessionsByProject.get(session.projectName);
+    if (!arr) { arr = []; sessionsByProject.set(session.projectName, arr); }
+    arr.push(session);
+  }
+
+  for (const li of list.querySelectorAll<HTMLElement>('li[data-project-name]')) {
+    const projectName = li.dataset.projectName!;
+    const projectSessions = sessionsByProject.get(projectName) || [];
+    const isActive = activeProjects.includes(projectName);
+    const hasProjectNotification = projectSessions.some(s => notifiedSessionIds.has(s.id));
+
+    // Update project-level indicator
+    const row = li.querySelector('.project-row')!;
+    const actions = row.querySelector('.project-actions')!;
+    let indicator = row.querySelector<HTMLElement>('.notification-indicator, .active-indicator');
+
+    if (hasProjectNotification) {
+      if (!indicator || !indicator.classList.contains('notification-indicator')) {
+        indicator?.remove();
+        const el = document.createElement('div');
+        el.className = 'notification-indicator';
+        row.insertBefore(el, actions);
+      }
+    } else if (isActive) {
+      if (!indicator || !indicator.classList.contains('active-indicator')) {
+        indicator?.remove();
+        const el = document.createElement('div');
+        el.className = 'active-indicator';
+        row.insertBefore(el, actions);
+      }
+    } else {
+      indicator?.remove();
+    }
+
+    // Update terminal sub-item notification state
+    for (const subItem of li.querySelectorAll<HTMLElement>('li[data-terminal-name]')) {
+      const termName = subItem.dataset.terminalName!;
+      const termHasNotification = projectSessions.some(
+        s => s.terminalName === termName && notifiedSessionIds.has(s.id)
+      );
+      const isRunning = projectSessions.some(s => s.terminalName === termName);
+
+      subItem.classList.toggle('has-notification', termHasNotification);
+
+      // Update the status span (notification dot / running dot)
+      const name = subItem.querySelector('.terminal-sub-name')!;
+      let statusSpan = name.nextElementSibling as HTMLElement | null;
+      // Remove existing status span if it's one we manage
+      if (statusSpan && (statusSpan.classList.contains('terminal-sub-notification') || statusSpan.classList.contains('terminal-sub-running'))) {
+        statusSpan.remove();
+        statusSpan = null;
+      }
+      if (termHasNotification) {
+        const span = document.createElement('span');
+        span.className = 'terminal-sub-notification';
+        name.insertAdjacentElement('afterend', span);
+      } else if (isRunning) {
+        const span = document.createElement('span');
+        span.className = 'terminal-sub-running';
+        name.insertAdjacentElement('afterend', span);
+      }
+    }
+  }
 }

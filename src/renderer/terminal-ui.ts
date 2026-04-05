@@ -18,6 +18,8 @@ import {
   TabGroup,
 } from './state';
 import { esc } from './utils';
+import { showHistoryOverlay, hideHistoryOverlay } from './history-overlay';
+import { attachSearchAddon, disposeTerminalSearch } from './terminal-search';
 
 // ---- Render callback wiring (avoids circular dependency with git-panel) ----
 
@@ -58,7 +60,7 @@ const TERMINAL_OPTIONS = {
   fontFamily: '"SF Mono", Menlo, monospace',
   cursorBlink: true,
   allowProposedApi: true,
-  scrollback: 5000,
+  scrollback: 50000,
 };
 
 function hexToRgba(hex: string, alpha: number): string {
@@ -148,7 +150,7 @@ export function makeTerminalSession(
       return false; // prevent xterm from processing any Shift+Enter event
     }
     // Let Cmd/Ctrl shortcuts bubble up to the document handler
-    if ((event.metaKey || event.ctrlKey) && ['n', 't', 'p', 'd', 'k', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(event.key)) {
+    if ((event.metaKey || event.ctrlKey) && ['n', 't', 'p', 'd', 'k', 'f', 'F', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(event.key)) {
       return false;
     }
     return true;
@@ -169,12 +171,22 @@ export function makeTerminalSession(
   });
   disposables.push(resizeDisposable);
 
+  // Scroll-to-top: show history overlay with disk-backed log
+  const scrollDisposable = terminal.onScroll(() => {
+    if (terminal.buffer.active.viewportY === 0) {
+      showHistoryOverlay(id, wrapper, () => {
+        terminal.focus();
+      });
+    }
+  });
+  disposables.push(scrollDisposable);
+
   // Click to focus this pane
   wrapper.addEventListener('mousedown', () => {
     focusSession(id);
   });
 
-  return {
+  const session: TerminalSession = {
     id,
     projectName,
     terminalName,
@@ -184,6 +196,10 @@ export function makeTerminalSession(
     groupId,
     disposables,
   };
+
+  attachSearchAddon(session);
+
+  return session;
 }
 
 // ---- Tab group management ----
@@ -204,7 +220,7 @@ export function createTabGroup(session: TerminalSession): TabGroup {
   const group: TabGroup = {
     id: gid,
     projectName: session.projectName,
-    label: `${session.projectName}: ${session.terminalName}`,
+    label: session.projectName ? `${session.projectName}: ${session.terminalName}` : `Terminal ${[...tabGroups.values()].filter(g => g.projectName === '').length + 1}`,
     sessionIds: [session.id],
     element: pane,
     color: project?.color,
@@ -300,13 +316,21 @@ export function closeGroup(groupId: string): void {
     notifiedSessionIds.delete(sid);
   }
 
+  const allGroupIds = [...tabGroups.keys()];
+  const closedIndex = allGroupIds.indexOf(groupId);
+
   group.element.remove();
   tabGroups.delete(groupId);
 
   // Switch to next available group (activateGroup already calls renderTerminalTabs)
   if (activeGroupId === groupId) {
     const remaining = [...tabGroups.keys()];
-    const nextId = remaining.length > 0 ? remaining[remaining.length - 1] : null;
+    let nextId: string | null = null;
+    if (remaining.length > 0) {
+      // Prefer the tab to the left; fall back to the tab now at the same position (right neighbour)
+      const targetIndex = Math.max(0, closedIndex - 1);
+      nextId = remaining[Math.min(targetIndex, remaining.length - 1)];
+    }
     setActiveGroupId(nextId);
     if (nextId) {
       activateGroup(nextId);
@@ -333,7 +357,10 @@ export function removeSession(id: string): void {
   for (const d of session.disposables) d.dispose();
   session.terminal.dispose();
 
-  // Clean up stale notification state
+  // Clean up search bar
+  disposeTerminalSearch(id);
+
+  // Clean up stale state
   notifiedSessionIds.delete(id);
 
   const group = tabGroups.get(session.groupId);
@@ -427,6 +454,35 @@ export async function splitSession(sessionId: string): Promise<void> {
   updateActiveProjects();
 }
 
+export async function splitWithTerminal(groupId: string, projectName: string, terminalName: string): Promise<void> {
+  const group = tabGroups.get(groupId);
+  if (!group) return;
+
+  const result = await window.api.splitWithTerminal(projectName, terminalName);
+  if (!result) return;
+
+  const newSession = makeTerminalSession(
+    result.id,
+    result.projectName,
+    result.terminalName,
+    group.id,
+  );
+  sessions.set(result.id, newSession);
+
+  const divider = document.createElement('div');
+  divider.className = 'split-divider';
+  group.element.appendChild(divider);
+  group.element.appendChild(newSession.element);
+
+  group.sessionIds.push(result.id);
+
+  fitGroupSessions(group);
+  focusSession(result.id);
+
+  renderTerminalTabs();
+  updateActiveProjects();
+}
+
 // ---- Tab drag-and-drop state ----
 
 let draggedGroupId: string | null = null;
@@ -458,7 +514,8 @@ export function renderTerminalTabs(): void {
   terminalTabs.innerHTML = '';
   terminalTabs.setAttribute('role', 'tablist');
 
-  const groupEntries = [...tabGroups.entries()];
+  const activeProjectName = activeGroupId ? tabGroups.get(activeGroupId)?.projectName : undefined;
+  const groupEntries = [...tabGroups.entries()].filter(([, g]) => g.projectName === activeProjectName);
 
   for (const [groupId, group] of groupEntries) {
     const isActive = groupId === activeGroupId;
