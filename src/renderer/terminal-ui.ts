@@ -316,13 +316,21 @@ export function closeGroup(groupId: string): void {
     notifiedSessionIds.delete(sid);
   }
 
+  const allGroupIds = [...tabGroups.keys()];
+  const closedIndex = allGroupIds.indexOf(groupId);
+
   group.element.remove();
   tabGroups.delete(groupId);
 
   // Switch to next available group (activateGroup already calls renderTerminalTabs)
   if (activeGroupId === groupId) {
     const remaining = [...tabGroups.keys()];
-    const nextId = remaining.length > 0 ? remaining[remaining.length - 1] : null;
+    let nextId: string | null = null;
+    if (remaining.length > 0) {
+      // Prefer the tab to the left; fall back to the tab now at the same position (right neighbour)
+      const targetIndex = Math.max(0, closedIndex - 1);
+      nextId = remaining[Math.min(targetIndex, remaining.length - 1)];
+    }
     setActiveGroupId(nextId);
     if (nextId) {
       activateGroup(nextId);

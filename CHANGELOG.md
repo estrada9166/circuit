@@ -1,5 +1,11 @@
 # Changelog
 
+## [3.6.3] - 2026-04-04
+
+### Fixed
+
+- **Terminal close navigation**: Closing a terminal now selects the tab to the left instead of jumping to the last tab. Falls back to the right neighbour if the closed tab was leftmost, or clears selection if no tabs remain.
+
 ## [3.6.2] - 2026-04-04
 
 ### Fixed
