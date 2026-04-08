@@ -150,7 +150,7 @@ export function makeTerminalSession(
       return false; // prevent xterm from processing any Shift+Enter event
     }
     // Let Cmd/Ctrl shortcuts bubble up to the document handler
-    if ((event.metaKey || event.ctrlKey) && ['n', 't', 'p', 'd', 'k', 'f', 'F', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(event.key)) {
+    if ((event.metaKey || event.ctrlKey) && ['n', 't', 'p', 'P', 'd', 'k', 'f', 'F', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(event.key)) {
       return false;
     }
     return true;
@@ -299,6 +299,18 @@ export function focusSession(sessionId: string): void {
 
 // ---- Close / remove ----
 
+function findNextGroupInProject(projectName: string, closedGroupId: string): string | null {
+  const projectGroupIds = [...tabGroups.entries()]
+    .filter(([, g]) => g.projectName === projectName)
+    .map(([id]) => id);
+  const closedIndex = projectGroupIds.indexOf(closedGroupId);
+  if (closedIndex === -1 || projectGroupIds.length === 0) return null;
+
+  // Prefer the tab to the left; fall back to the tab now at the same position.
+  const targetIndex = Math.max(0, closedIndex - 1);
+  return projectGroupIds[Math.min(targetIndex, projectGroupIds.length - 1)] ?? null;
+}
+
 export function closeGroup(groupId: string): void {
   const group = tabGroups.get(groupId);
   if (!group) return;
@@ -316,21 +328,15 @@ export function closeGroup(groupId: string): void {
     notifiedSessionIds.delete(sid);
   }
 
-  const allGroupIds = [...tabGroups.keys()];
-  const closedIndex = allGroupIds.indexOf(groupId);
+  const nextProjectGroupId =
+    activeGroupId === groupId ? findNextGroupInProject(group.projectName, groupId) : null;
 
   group.element.remove();
   tabGroups.delete(groupId);
 
   // Switch to next available group (activateGroup already calls renderTerminalTabs)
   if (activeGroupId === groupId) {
-    const remaining = [...tabGroups.keys()];
-    let nextId: string | null = null;
-    if (remaining.length > 0) {
-      // Prefer the tab to the left; fall back to the tab now at the same position (right neighbour)
-      const targetIndex = Math.max(0, closedIndex - 1);
-      nextId = remaining[Math.min(targetIndex, remaining.length - 1)];
-    }
+    const nextId = nextProjectGroupId;
     setActiveGroupId(nextId);
     if (nextId) {
       activateGroup(nextId);
@@ -381,12 +387,13 @@ export function removeSession(id: string): void {
 
       if (group.sessionIds.length === 0) {
         // Group is now empty -- remove it
+        const nextProjectGroupId =
+          activeGroupId === group.id ? findNextGroupInProject(group.projectName, group.id) : null;
         group.element.remove();
         tabGroups.delete(group.id);
 
         if (activeGroupId === group.id) {
-          const remaining = [...tabGroups.keys()];
-          const nextId = remaining.length > 0 ? remaining[remaining.length - 1] : null;
+          const nextId = nextProjectGroupId;
           setActiveGroupId(nextId);
           if (nextId) {
             activateGroup(nextId);
