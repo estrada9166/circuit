@@ -23,10 +23,19 @@ export interface LegacyProject {
 
 export type StoredProject = Project | LegacyProject;
 
+/** A saved command that can be run from the command palette */
+export interface SavedCommand {
+  name: string;
+  description?: string;
+  command: string;
+  project?: string;
+}
+
 /** Top-level structure of the JSON config file */
 export interface StoreData {
   version?: number;
   projects: StoredProject[];
+  commands?: SavedCommand[];
 }
 
 /** Fields that can be updated via store:update */
@@ -109,6 +118,12 @@ export const IPC = {
   LOG_GET_SIZE: 'log:getSize',
   LOG_SEARCH: 'log:search',
 
+  // Saved Commands
+  COMMANDS_LOAD: 'commands:load',
+  COMMANDS_ADD: 'commands:add',
+  COMMANDS_UPDATE: 'commands:update',
+  COMMANDS_REMOVE: 'commands:remove',
+
   // Platform
   GET_HOMEDIR: 'platform:homedir',
   OPEN_EXTERNAL: 'platform:openExternal',
@@ -152,8 +167,15 @@ export interface PreloadApi {
   getLogSize(ptyId: string): Promise<number>;
   searchLog(ptyId: string, query: string): Promise<LogSearchResult[]>;
 
+  // Saved Commands
+  loadCommands(): Promise<SavedCommand[]>;
+  addCommand(cmd: SavedCommand): Promise<SavedCommand>;
+  updateCommand(index: number, cmd: SavedCommand): Promise<SavedCommand>;
+  removeCommand(index: number): Promise<void>;
+
   // Command palette
   onOpenCommandPalette(callback: () => void): () => void;
+  onOpenRunCommandPalette(callback: () => void): () => void;
 
   // Platform
   getHomedir(): string;

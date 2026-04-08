@@ -161,6 +161,14 @@ function createMenu(): void {
             if (win) win.webContents.send('open-command-palette');
           },
         },
+        {
+          label: 'Run Saved Command',
+          accelerator: 'CmdOrCtrl+Shift+P',
+          click: () => {
+            const win = BrowserWindow.getFocusedWindow();
+            if (win) win.webContents.send('open-run-command-palette');
+          },
+        },
       ],
     },
     {
@@ -292,6 +300,25 @@ app.whenReady().then(() => {
       throw new Error('Names must be an array of strings');
     }
     store.reorderProjects(names as string[]);
+  });
+
+  // ---- Saved Commands handlers ----
+  ipcMain.handle(IPC.COMMANDS_LOAD, () => store.commands);
+
+  ipcMain.handle(IPC.COMMANDS_ADD, (_, cmd: unknown) => {
+    if (!cmd || typeof cmd !== 'object') throw new Error('Invalid command data');
+    return store.addCommand(cmd as { name: string; command: string; description?: string; project?: string });
+  });
+
+  ipcMain.handle(IPC.COMMANDS_UPDATE, (_, index: unknown, cmd: unknown) => {
+    if (typeof index !== 'number') throw new Error('Index must be a number');
+    if (!cmd || typeof cmd !== 'object') throw new Error('Invalid command data');
+    return store.updateCommand(index, cmd as { name: string; command: string; description?: string; project?: string });
+  });
+
+  ipcMain.handle(IPC.COMMANDS_REMOVE, (_, index: unknown) => {
+    if (typeof index !== 'number') throw new Error('Index must be a number');
+    store.removeCommand(index);
   });
 
   // ---- Project handlers ----

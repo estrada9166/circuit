@@ -12,6 +12,7 @@ import {
   Keyboard,
   RefreshCw,
   Play,
+  Trash2,
 } from 'lucide';
 
 type IconNode = [string, Record<string, string>][];
@@ -63,6 +64,10 @@ export const ICON_GIT_HEADER = renderIcon(GitBranch, 16);
 export const ICON_REFRESH = renderIcon(RefreshCw, 14);
 export const ICON_GIT_CHEVRON = renderIcon(ChevronRight, 10, 3);
 export const ICON_GIT_FOLDER = renderIcon(Folder, 16, 2, ' class="git-folder-icon"');
+
+// Command manager icons (14px)
+export const ICON_CMD_EDIT = renderIcon(Pencil, 14);
+export const ICON_CMD_DELETE = renderIcon(Trash2, 14);
 
 // index.html replacements
 export const ICON_MONITOR = renderIcon(Monitor, 24);

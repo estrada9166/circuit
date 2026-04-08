@@ -2,7 +2,7 @@ import * as fs from 'fs';
 import * as os from 'os';
 import * as path from 'path';
 import * as crypto from 'crypto';
-import type { Project, TerminalConfig, UpdatableProjectFields } from './types';
+import type { Project, TerminalConfig, UpdatableProjectFields, SavedCommand } from './types';
 import { migrateStoreData } from './migration';
 
 const CONFIG_PATH = path.join(os.homedir(), '.iterm-projects.json');
@@ -10,6 +10,7 @@ const UPDATABLE_FIELDS = new Set<string>(['path', 'terminals', 'color']);
 
 export class Store {
   projects: Project[] = [];
+  commands: SavedCommand[] = [];
 
   load(): Project[] {
     if (!fs.existsSync(CONFIG_PATH)) {
@@ -37,12 +38,13 @@ export class Store {
 
     const { data, wasMigrated } = migrateStoreData(parsed);
     this.projects = data.projects as Project[];
+    this.commands = (data.commands ?? []) as SavedCommand[];
     if (wasMigrated) this._save();
     return this.projects;
   }
 
   private _save(): void {
-    const data = { version: 2, projects: this.projects };
+    const data = { version: 2, projects: this.projects, commands: this.commands };
     const json = JSON.stringify(data, null, 2) + '\n';
 
     const dir = path.dirname(CONFIG_PATH);
@@ -161,5 +163,46 @@ export class Store {
 
     this._save();
     return project;
+  }
+
+  addCommand(cmd: SavedCommand): SavedCommand {
+    if (!cmd.name || typeof cmd.name !== 'string') {
+      throw new Error('Command name is required');
+    }
+    if (!cmd.command || typeof cmd.command !== 'string') {
+      throw new Error('Command string is required');
+    }
+    const saved: SavedCommand = { name: cmd.name, command: cmd.command };
+    if (cmd.description) saved.description = cmd.description;
+    if (cmd.project) saved.project = cmd.project;
+    this.commands.push(saved);
+    this._save();
+    return saved;
+  }
+
+  updateCommand(index: number, cmd: SavedCommand): SavedCommand {
+    if (index < 0 || index >= this.commands.length) {
+      throw new Error(`Command index ${index} out of bounds`);
+    }
+    if (!cmd.name || typeof cmd.name !== 'string') {
+      throw new Error('Command name is required');
+    }
+    if (!cmd.command || typeof cmd.command !== 'string') {
+      throw new Error('Command string is required');
+    }
+    const saved: SavedCommand = { name: cmd.name, command: cmd.command };
+    if (cmd.description) saved.description = cmd.description;
+    if (cmd.project) saved.project = cmd.project;
+    this.commands[index] = saved;
+    this._save();
+    return saved;
+  }
+
+  removeCommand(index: number): void {
+    if (index < 0 || index >= this.commands.length) {
+      throw new Error(`Command index ${index} out of bounds`);
+    }
+    this.commands.splice(index, 1);
+    this._save();
   }
 }

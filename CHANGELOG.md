@@ -1,5 +1,33 @@
 # Changelog
 
+## [3.7.2] - 2026-04-07
+
+### Fixed
+
+- **Terminal close project jumps**: Closing a terminal tab or the last split pane in a tab now keeps selection within the same project instead of occasionally switching to a tab from another project.
+
+## [3.7.1] - 2026-04-06
+
+### Changed
+
+- **Manage Commands**: Edit and delete buttons now use icons (pencil and trash) instead of text.
+- **Manage Commands**: Project badge moved to the right of the command name.
+
+## [3.7.0] - 2026-04-05
+
+### Added
+
+- **Saved Commands**: A repository of shell commands (global or per-project) accessible via `Cmd+Shift+P`. Includes fuzzy search across name, description, and command text. Commands can be added, edited, and deleted through a "Manage Commands" overlay.
+
+### Changed
+
+- **Saved Commands**: Selecting a saved command now pastes it into the terminal without executing, allowing the user to review and edit before running.
+- **Saved Commands**: Description now appears below the name and command in the run command palette for a cleaner layout.
+
+### Fixed
+
+- **Saved Commands**: Terminal now receives focus after selecting a stored command, so users no longer need to click the terminal manually.
+
 ## [3.6.3] - 2026-04-04
 
 ### Fixed

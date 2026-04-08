@@ -1,4 +1,4 @@
-import type { Project, GitRepoInfo, TerminalConfig } from '../types';
+import type { Project, GitRepoInfo, TerminalConfig, SavedCommand } from '../types';
 import { Terminal } from '@xterm/xterm';
 import { FitAddon } from '@xterm/addon-fit';
 
@@ -70,6 +70,11 @@ export function setGitLoading(l: boolean): void { gitLoading = l; }
 export function fileDiffKey(repoPath: string, filePath: string): string {
   return `${repoPath}\0${filePath}`;
 }
+
+// ---- Saved commands state ----
+
+export let savedCommands: SavedCommand[] = [];
+export function setSavedCommands(c: SavedCommand[]): void { savedCommands = c; }
 
 // ---- Notification / expand state ----
 

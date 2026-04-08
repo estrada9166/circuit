@@ -1,4 +1,4 @@
-import type { Project, LegacyProject, StoredProject, StoreData } from './types';
+import type { Project, LegacyProject, StoredProject, StoreData, SavedCommand } from './types';
 
 const CURRENT_VERSION = 2;
 
@@ -77,8 +77,17 @@ export function migrateStoreData(raw: unknown): { data: StoreData; wasMigrated: 
     }
   }
 
+  // Pass through saved commands (additive field, no migration needed)
+  const commands: SavedCommand[] = Array.isArray(obj.commands)
+    ? (obj.commands as unknown[]).filter((c): c is SavedCommand =>
+        typeof c === 'object' && c !== null &&
+        typeof (c as Record<string, unknown>).name === 'string' &&
+        typeof (c as Record<string, unknown>).command === 'string'
+      )
+    : [];
+
   return {
-    data: { version: CURRENT_VERSION, projects },
+    data: { version: CURRENT_VERSION, projects, commands },
     wasMigrated,
   };
 }

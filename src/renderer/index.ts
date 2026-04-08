@@ -9,6 +9,7 @@ import {
   projectBranches,
   setProjects,
   setActiveProjects,
+  setSavedCommands,
 } from './state';
 import { initSidebar, renderSidebar, updateSidebarNotifications, setSidebarCallbacks } from './sidebar';
 import {
@@ -29,6 +30,8 @@ import {
 import { initGitPanel, openGitPanel, closeGitPanel, renderGitTab, setTerminalCallbacks } from './git-panel';
 import { initDialogs, showEditDialog, showRemoveDialog } from './dialogs';
 import { initCommandPalette, openCommandPalette } from './command-palette';
+import { initRunCommandPalette, openRunCommandPalette } from './run-command-palette';
+import { initCommandManager, openAddCommandDialog, openManageCommands } from './command-manager';
 import { initLogSearch, openLogSearch } from './log-search';
 import { openTerminalSearch } from './terminal-search';
 import { initHistoryOverlay } from './history-overlay';
@@ -41,6 +44,8 @@ async function init(): Promise<void> {
   initGitPanel();
   initDialogs();
   initCommandPalette(activateGroup);
+  initRunCommandPalette(openAddCommandDialog, openManageCommands);
+  initCommandManager();
   initLogSearch();
   initHistoryOverlay();
 
@@ -82,12 +87,14 @@ async function init(): Promise<void> {
   });
 
   // Load initial data in parallel
-  const [loadedProjects, active] = await Promise.all([
+  const [loadedProjects, active, loadedCommands] = await Promise.all([
     window.api.loadProjects(),
     window.api.getActiveProjects(),
+    window.api.loadCommands(),
   ]);
   setProjects(loadedProjects);
   setActiveProjects(active);
+  setSavedCommands(loadedCommands);
 
   // Pre-populate running terminal state for all projects (they're expanded by default)
   await Promise.all(
@@ -176,6 +183,10 @@ async function init(): Promise<void> {
     openCommandPalette();
   }));
 
+  cleanups.push(window.api.onOpenRunCommandPalette(() => {
+    openRunCommandPalette();
+  }));
+
 
   // New Terminal button
   document.getElementById('btn-new-terminal')?.addEventListener('click', () => {
@@ -201,6 +212,7 @@ async function init(): Promise<void> {
     <div class="shortcut-row"><span class="shortcut-key">\u2318 T</span><span class="shortcut-desc">New terminal</span></div>
 	<div class="shortcut-row"><span class="shortcut-key">\u2318 B</span><span class="shortcut-desc">Toggle sidebar</span></div>
     <div class="shortcut-row"><span class="shortcut-key">\u2318 P</span><span class="shortcut-desc">Command palette</span></div>
+    <div class="shortcut-row"><span class="shortcut-key">\u2318 \u21e7 P</span><span class="shortcut-desc">Run saved command</span></div>
     <div class="shortcut-row"><span class="shortcut-key">\u2318 D</span><span class="shortcut-desc">Split pane</span></div>
     <div class="shortcut-row"><span class="shortcut-key">\u2318 K</span><span class="shortcut-desc">Clear terminal</span></div>
     <div class="shortcut-row"><span class="shortcut-key">\u2318 F</span><span class="shortcut-desc">Find in terminal</span></div>
@@ -267,6 +279,12 @@ async function init(): Promise<void> {
       window.api.openStandaloneTerminal().catch((err: unknown) => {
         console.error('Failed to open terminal:', err);
       });
+    }
+    // Cmd/Ctrl+Shift+P: open run command palette
+    if (e.shiftKey && (e.key === 'p' || e.key === 'P')) {
+      e.preventDefault();
+      openRunCommandPalette();
+      return;
     }
     // Cmd/Ctrl+P: open command palette
     if (e.key === 'p') {

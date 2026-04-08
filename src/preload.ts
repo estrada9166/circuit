@@ -71,11 +71,22 @@ const api: PreloadApi = {
   getLogSize: (ptyId: string) => ipcRenderer.invoke(IPC.LOG_GET_SIZE, ptyId),
   searchLog: (ptyId: string, query: string) => ipcRenderer.invoke(IPC.LOG_SEARCH, ptyId, query),
 
+  // Saved Commands
+  loadCommands: () => ipcRenderer.invoke(IPC.COMMANDS_LOAD),
+  addCommand: (cmd) => ipcRenderer.invoke(IPC.COMMANDS_ADD, cmd),
+  updateCommand: (index, cmd) => ipcRenderer.invoke(IPC.COMMANDS_UPDATE, index, cmd),
+  removeCommand: (index) => ipcRenderer.invoke(IPC.COMMANDS_REMOVE, index),
+
   // Command palette
   onOpenCommandPalette: (callback: () => void) => {
     const handler = () => callback();
     ipcRenderer.on('open-command-palette', handler);
     return () => { ipcRenderer.removeListener('open-command-palette', handler); };
+  },
+  onOpenRunCommandPalette: (callback: () => void) => {
+    const handler = () => callback();
+    ipcRenderer.on('open-run-command-palette', handler);
+    return () => { ipcRenderer.removeListener('open-run-command-palette', handler); };
   },
 
   // Platform
