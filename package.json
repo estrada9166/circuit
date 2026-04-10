@@ -1,8 +1,9 @@
 {
-  "name": "iterm-project-manager",
+  "name": "circuit",
   "version": "3.0.0",
-  "description": "Project manager with integrated terminal",
+  "description": "Project manager with integrated terminals",
   "main": "dist/src/main.js",
+  "author": "German Escobar",
   "scripts": {
     "build:main": "tsc -p tsconfig.json",
     "build:preload": "esbuild src/preload.ts --bundle --outfile=dist/src/preload.js --platform=node --format=cjs --external:electron",
@@ -11,14 +12,14 @@
     "build:watch": "concurrently \"tsc -p tsconfig.json --watch\" \"esbuild src/preload.ts --bundle --outfile=dist/src/preload.js --platform=node --format=cjs --external:electron --watch\" \"esbuild src/renderer/index.ts --bundle --outfile=dist/renderer.bundle.js --platform=browser --format=esm --external:electron --watch\"",
     "prestart": "npm run build",
     "start": "electron dist/src/main.js",
-    "postinstall": "electron-rebuild",
+    "postinstall": "electron-builder install-app-deps",
     "prepack": "npm run build",
     "pack": "electron-builder --dir",
     "predist": "npm run build",
     "dist": "electron-builder"
   },
   "devDependencies": {
-    "@electron/rebuild": "^4.0.3",
+    "@electron/notarize": "^3.1.0",
     "@types/node": "^22.0.0",
     "concurrently": "^9.0.0",
     "electron": "^33.0.0",
@@ -30,16 +31,20 @@
     "onlyBuiltDependencies": [
       "electron",
       "node-pty",
-      "esbuild",
-      "@electron/rebuild"
+      "esbuild"
     ]
   },
   "build": {
-    "appId": "com.iterm-project-manager",
-    "productName": "Project Manager",
+    "appId": "com.germanescobar.circuit",
+    "productName": "Circuit",
+    "artifactName": "${productName}-${version}-${arch}.${ext}",
+    "directories": {
+      "buildResources": "build"
+    },
     "files": [
       "dist/**/*",
       "index.html",
+      "scripts/notarize.cjs",
       "node_modules/@xterm/**/*",
       "node_modules/node-pty/**/*",
       "node_modules/diff2html/**/*"
@@ -47,10 +52,18 @@
     "asarUnpack": [
       "node_modules/node-pty/**/*"
     ],
+    "afterSign": "scripts/notarize.cjs",
     "mac": {
       "category": "public.app-category.developer-tools",
-      "target": "dir",
-      "identity": null
+      "target": [
+        "dmg",
+        "zip"
+      ],
+      "icon": "build/icon.icns",
+      "hardenedRuntime": true,
+      "gatekeeperAssess": false,
+      "entitlements": "build/entitlements.mac.plist",
+      "entitlementsInherit": "build/entitlements.mac.inherit.plist"
     }
   },
   "dependencies": {

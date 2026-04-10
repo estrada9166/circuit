@@ -1,5 +1,13 @@
 # Changelog
 
+## [Unreleased]
+
+### Changed
+
+- **Rename**: Renamed the app from **Vibe Terminal** to **Circuit** across all surfaces (package.json, window title, README, changelog).
+- **Release packaging**: Renamed the packaged app to **Circuit**, added macOS `dmg` and `zip` release targets, and added Electron Builder signing/notarization scaffolding with entitlements and an icon drop-in location under `build/`.
+- **App data storage**: Moved packaged app state into Electron's `userData` directory and automatically imports legacy `~/.iterm-projects.json` and `~/.iterm-projects-window.json` files on first launch.
+
 ## [3.7.2] - 2026-04-07
 
 ### Fixed
