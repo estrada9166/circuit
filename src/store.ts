@@ -1,28 +1,37 @@
 import * as fs from 'fs';
-import * as os from 'os';
 import * as path from 'path';
 import * as crypto from 'crypto';
 import type { Project, TerminalConfig, UpdatableProjectFields, SavedCommand } from './types';
 import { migrateStoreData } from './migration';
 
-const CONFIG_PATH = path.join(os.homedir(), '.iterm-projects.json');
 const UPDATABLE_FIELDS = new Set<string>(['path', 'terminals', 'color']);
 
 export class Store {
   projects: Project[] = [];
   commands: SavedCommand[] = [];
+  private readonly configPath: string;
+  private readonly legacyConfigPath?: string;
+
+  constructor(configPath: string, legacyConfigPath?: string) {
+    this.configPath = configPath;
+    this.legacyConfigPath = legacyConfigPath;
+  }
 
   load(): Project[] {
-    if (!fs.existsSync(CONFIG_PATH)) {
+    this.importLegacyConfigIfNeeded();
+
+    if (!fs.existsSync(this.configPath)) {
       this.projects = [];
+      this.commands = [];
       return this.projects;
     }
 
     let raw: string;
     try {
-      raw = fs.readFileSync(CONFIG_PATH, 'utf-8');
+      raw = fs.readFileSync(this.configPath, 'utf-8');
     } catch {
       this.projects = [];
+      this.commands = [];
       return this.projects;
     }
 
@@ -30,9 +39,10 @@ export class Store {
     try {
       parsed = JSON.parse(raw);
     } catch {
-      const backupPath = CONFIG_PATH + '.bak';
-      try { fs.copyFileSync(CONFIG_PATH, backupPath); } catch { /* ignore */ }
+      const backupPath = this.configPath + '.bak';
+      try { fs.copyFileSync(this.configPath, backupPath); } catch { /* ignore */ }
       this.projects = [];
+      this.commands = [];
       return this.projects;
     }
 
@@ -47,16 +57,30 @@ export class Store {
     const data = { version: 2, projects: this.projects, commands: this.commands };
     const json = JSON.stringify(data, null, 2) + '\n';
 
-    const dir = path.dirname(CONFIG_PATH);
+    const dir = path.dirname(this.configPath);
     const tmpName = `.iterm-projects-${crypto.randomBytes(6).toString('hex')}.tmp`;
     const tmpPath = path.join(dir, tmpName);
 
     try {
+      fs.mkdirSync(dir, { recursive: true, mode: 0o700 });
       fs.writeFileSync(tmpPath, json, { mode: 0o600 });
-      fs.renameSync(tmpPath, CONFIG_PATH);
+      fs.renameSync(tmpPath, this.configPath);
     } catch (err) {
       try { fs.unlinkSync(tmpPath); } catch { /* ignore */ }
       throw err;
+    }
+  }
+
+  private importLegacyConfigIfNeeded(): void {
+    if (!this.legacyConfigPath) return;
+    if (fs.existsSync(this.configPath)) return;
+    if (!fs.existsSync(this.legacyConfigPath)) return;
+
+    try {
+      fs.mkdirSync(path.dirname(this.configPath), { recursive: true, mode: 0o700 });
+      fs.copyFileSync(this.legacyConfigPath, this.configPath);
+    } catch {
+      /* ignore */
     }
   }
 

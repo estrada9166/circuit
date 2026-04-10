@@ -10,13 +10,13 @@ import type { WindowState } from './types';
 import { TerminalLogger } from './terminal-logger';
 
 const SIDEBAR_WIDTH = 280;
-const WINDOW_STATE_FILE = path.join(os.homedir(), '.iterm-projects-window.json');
+const LEGACY_WINDOW_STATE_FILE = path.join(os.homedir(), '.iterm-projects-window.json');
+const LEGACY_STORE_FILE = path.join(os.homedir(), '.iterm-projects.json');
 
 let mainWindow: BrowserWindow | null = null;
-const store = new Store();
+let store!: Store;
 const ptyManager = new PtyManager();
-const logDir = path.join(app.getPath('userData'), 'terminal-logs');
-const terminalLogger = new TerminalLogger(logDir);
+let terminalLogger!: TerminalLogger;
 
 // ---- Single instance lock ----
 const gotLock = app.requestSingleInstanceLock();
@@ -34,8 +34,9 @@ app.on('second-instance', () => {
 // ---- Window state persistence ----
 
 function loadWindowState(): WindowState | null {
+  const windowStateFile = getWindowStateFile();
   try {
-    const raw = fs.readFileSync(WINDOW_STATE_FILE, 'utf-8');
+    const raw = fs.readFileSync(windowStateFile, 'utf-8');
     return JSON.parse(raw) as WindowState;
   } catch {
     return null;
@@ -45,6 +46,7 @@ function loadWindowState(): WindowState | null {
 let saveWindowStateTimer: ReturnType<typeof setTimeout> | null = null;
 
 function saveWindowState(): void {
+  const windowStateFile = getWindowStateFile();
   if (saveWindowStateTimer) return;
   saveWindowStateTimer = setTimeout(() => {
     saveWindowStateTimer = null;
@@ -58,12 +60,14 @@ function saveWindowState(): void {
       isMaximized: mainWindow.isMaximized(),
     };
     try {
-      fs.writeFileSync(WINDOW_STATE_FILE, JSON.stringify(state), { mode: 0o600 });
+      fs.mkdirSync(path.dirname(windowStateFile), { recursive: true, mode: 0o700 });
+      fs.writeFileSync(windowStateFile, JSON.stringify(state), { mode: 0o600 });
     } catch { /* ignore */ }
   }, 500);
 }
 
 function saveWindowStateNow(): void {
+  const windowStateFile = getWindowStateFile();
   if (saveWindowStateTimer) {
     clearTimeout(saveWindowStateTimer);
     saveWindowStateTimer = null;
@@ -78,8 +82,29 @@ function saveWindowStateNow(): void {
     isMaximized: mainWindow.isMaximized(),
   };
   try {
-    fs.writeFileSync(WINDOW_STATE_FILE, JSON.stringify(state), { mode: 0o600 });
+    fs.mkdirSync(path.dirname(windowStateFile), { recursive: true, mode: 0o700 });
+    fs.writeFileSync(windowStateFile, JSON.stringify(state), { mode: 0o600 });
   } catch { /* ignore */ }
+}
+
+function getWindowStateFile(): string {
+  return path.join(app.getPath('userData'), 'window-state.json');
+}
+
+function getStoreFile(): string {
+  return path.join(app.getPath('userData'), 'projects.json');
+}
+
+function migrateLegacyWindowStateIfNeeded(): void {
+  const windowStateFile = getWindowStateFile();
+  if (fs.existsSync(windowStateFile) || !fs.existsSync(LEGACY_WINDOW_STATE_FILE)) return;
+
+  try {
+    fs.mkdirSync(path.dirname(windowStateFile), { recursive: true, mode: 0o700 });
+    fs.copyFileSync(LEGACY_WINDOW_STATE_FILE, windowStateFile);
+  } catch {
+    /* ignore */
+  }
 }
 
 function getValidatedWindowState(): Partial<WindowState> {
@@ -254,6 +279,10 @@ function getProjectPathForRepo(repoPath: string): string | null {
 // ---- App lifecycle ----
 
 app.whenReady().then(() => {
+  migrateLegacyWindowStateIfNeeded();
+  store = new Store(getStoreFile(), LEGACY_STORE_FILE);
+  terminalLogger = new TerminalLogger(path.join(app.getPath('userData'), 'terminal-logs'));
+
   // Load persisted projects before the renderer boots so initial `store:load`
   // doesn't race and render the empty state incorrectly.
   store.load();
