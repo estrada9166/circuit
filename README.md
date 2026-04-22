@@ -2,6 +2,8 @@
 
 A macOS desktop app for managing multiple software projects with integrated terminal sessions, preconfigured commands, and git status tracking.
 
+**[Download latest release](https://github.com/estrada9166/vibe-terminal/releases/latest)**
+
 ## Features
 
 - Manage multiple projects with named terminal configurations
