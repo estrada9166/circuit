@@ -1,6 +1,6 @@
 {
   "name": "circuit",
-  "version": "3.0.0",
+  "version": "0.1.0",
   "description": "Project manager with integrated terminals",
   "main": "dist/src/main.js",
   "author": "German Escobar",
@@ -43,6 +43,13 @@
     },
     "files": [
       "dist/**/*",
+      "!dist/mac/**",
+      "!dist/mac-arm64/**",
+      "!dist/win-unpacked/**",
+      "!dist/*.dmg",
+      "!dist/*.zip",
+      "!dist/*.blockmap",
+      "!dist/*.exe",
       "index.html",
       "scripts/notarize.cjs",
       "node_modules/@xterm/**/*",
@@ -53,6 +60,10 @@
       "node_modules/node-pty/**/*"
     ],
     "afterSign": "scripts/notarize.cjs",
+    "publish": {
+      "provider": "github",
+      "releaseType": "prerelease"
+    },
     "mac": {
       "category": "public.app-category.developer-tools",
       "target": [
