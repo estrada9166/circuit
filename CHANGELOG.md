@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+### Fixed
+
+- Fixed a history overlay race where hiding the overlay while log chunks were still loading could throw `Cannot read properties of null (reading 'loadedOffset')`.
+
 ## [0.1.0] - 2026-04-19
 
 ### Added

@@ -171,12 +171,15 @@ export function makeTerminalSession(
   });
   disposables.push(resizeDisposable);
 
-  // Scroll-to-top: show history overlay with disk-backed log
+  // When the user scrolls away from the live prompt, show the disk-backed history overlay.
   const scrollDisposable = terminal.onScroll(() => {
-    if (terminal.buffer.active.viewportY === 0) {
+    const buffer = terminal.buffer.active;
+    if (buffer.viewportY < buffer.baseY) {
       showHistoryOverlay(id, wrapper, () => {
         terminal.focus();
       });
+    } else {
+      hideHistoryOverlay();
     }
   });
   disposables.push(scrollDisposable);
