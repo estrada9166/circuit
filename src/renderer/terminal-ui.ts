@@ -54,13 +54,16 @@ const TERMINAL_THEME = {
   white: '#f5f5f7',
 };
 
+const LIVE_SCROLLBACK_LINES = 10000;
+
 const TERMINAL_OPTIONS = {
   theme: TERMINAL_THEME,
   fontSize: 13,
   fontFamily: '"SF Mono", Menlo, monospace',
   cursorBlink: true,
   allowProposedApi: true,
-  scrollback: 50000,
+  // Keep the live xterm buffer bounded; full session history is already persisted to disk.
+  scrollback: LIVE_SCROLLBACK_LINES,
 };
 
 function hexToRgba(hex: string, alpha: number): string {

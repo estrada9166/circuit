@@ -2,8 +2,14 @@
 
 ## [Unreleased]
 
+### Changed
+
+- Reduced live terminal scrollback from 50,000 to 10,000 lines because full session history is already stored on disk, lowering renderer memory pressure in long-lived terminal sessions.
+- Added Electron renderer crash/unresponsive logging to help diagnose cases where terminal UI stops drawing after Chromium compositor memory warnings.
+
 ### Fixed
 
+- Fixed the history overlay trigger so scrolling behavior in pagers like `less` no longer opens the overlay when the terminal is back at the live prompt.
 - Fixed a history overlay race where hiding the overlay while log chunks were still loading could throw `Cannot read properties of null (reading 'loadedOffset')`.
 
 ## [0.1.0] - 2026-04-19
