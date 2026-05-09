@@ -174,10 +174,10 @@ export function makeTerminalSession(
   });
   disposables.push(resizeDisposable);
 
-  // When the user scrolls away from the live prompt, show the disk-backed history overlay.
+  // When the user reaches the top of xterm's live scrollback, show the disk-backed history overlay.
   const scrollDisposable = terminal.onScroll(() => {
     const buffer = terminal.buffer.active;
-    if (buffer.viewportY < buffer.baseY) {
+    if (buffer.type === 'normal' && buffer.baseY > 0 && buffer.viewportY === 0) {
       showHistoryOverlay(id, wrapper, () => {
         terminal.focus();
       });
