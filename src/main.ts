@@ -260,6 +260,14 @@ function createWindow(): void {
     return { action: 'deny' };
   });
 
+  mainWindow.webContents.on('render-process-gone', (_event, details) => {
+    console.error('Renderer process exited', details);
+  });
+
+  mainWindow.webContents.on('unresponsive', () => {
+    console.error('Renderer process became unresponsive');
+  });
+
   mainWindow.loadFile(path.join(__dirname, '..', '..', 'index.html'));
   ptyManager.setWindow(mainWindow);
 }

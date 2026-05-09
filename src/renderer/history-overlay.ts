@@ -70,7 +70,7 @@ export async function showHistoryOverlay(
   };
 
   // Load the last 2 chunks
-  await loadMoreChunks(2);
+  await loadMoreChunks(2, state);
 
   // Scroll to bottom (closest to live terminal)
   content.scrollTop = content.scrollHeight;
@@ -106,51 +106,54 @@ export function hideHistoryOverlay(): void {
   onHide();
 }
 
-async function loadMoreChunks(count: number): Promise<void> {
-  if (!state || state.loading) return;
-  if (state.loadedOffset >= state.totalSize) return;
+async function loadMoreChunks(count: number, overlayState = state): Promise<void> {
+  if (!overlayState || overlayState.loading) return;
+  if (overlayState.loadedOffset >= overlayState.totalSize) return;
 
-  state.loading = true;
-  const content = state.contentEl;
+  overlayState.loading = true;
+  const content = overlayState.contentEl;
   const prevScrollHeight = content.scrollHeight;
   const prevScrollTop = content.scrollTop;
 
-  let html = '';
-  for (let i = 0; i < count; i++) {
-    const offset = state.loadedOffset;
-    if (offset >= state.totalSize) break;
+  try {
+    let html = '';
+    for (let i = 0; i < count; i++) {
+      const offset = overlayState.loadedOffset;
+      if (offset >= overlayState.totalSize) break;
 
-    const chunk = await window.api.readLogChunk(state.ptyId, offset, CHUNK_SIZE);
-    if (!chunk) break;
+      const chunk = await window.api.readLogChunk(overlayState.ptyId, offset, CHUNK_SIZE);
+      if (state !== overlayState || !overlayState.element.isConnected) return;
+      if (!chunk) break;
 
-    html = ansiToHtml(chunk) + html;
-    state.loadedOffset += CHUNK_SIZE;
+      html = ansiToHtml(chunk) + html;
+      overlayState.loadedOffset += CHUNK_SIZE;
+    }
+
+    if (html) {
+      // Show loading indicator briefly
+      const loadingEl = content.querySelector('.history-loading');
+      if (loadingEl) loadingEl.remove();
+
+      // Prepend content
+      const fragment = document.createElement('div');
+      fragment.innerHTML = html;
+      content.insertBefore(fragment, content.firstChild);
+
+      // Maintain scroll position
+      const heightDelta = content.scrollHeight - prevScrollHeight;
+      content.scrollTop = prevScrollTop + heightDelta;
+    }
+
+    // Show loading indicator at top if more content available
+    if (overlayState.loadedOffset < overlayState.totalSize && !content.querySelector('.history-loading')) {
+      const loader = document.createElement('div');
+      loader.className = 'history-loading';
+      loader.textContent = 'Scroll up for more history...';
+      content.insertBefore(loader, content.firstChild);
+    }
+  } finally {
+    overlayState.loading = false;
   }
-
-  if (html) {
-    // Show loading indicator briefly
-    const loadingEl = content.querySelector('.history-loading');
-    if (loadingEl) loadingEl.remove();
-
-    // Prepend content
-    const fragment = document.createElement('div');
-    fragment.innerHTML = html;
-    content.insertBefore(fragment, content.firstChild);
-
-    // Maintain scroll position
-    const heightDelta = content.scrollHeight - prevScrollHeight;
-    content.scrollTop = prevScrollTop + heightDelta;
-  }
-
-  // Show loading indicator at top if more content available
-  if (state.loadedOffset < state.totalSize && !content.querySelector('.history-loading')) {
-    const loader = document.createElement('div');
-    loader.className = 'history-loading';
-    loader.textContent = 'Scroll up for more history...';
-    content.insertBefore(loader, content.firstChild);
-  }
-
-  state.loading = false;
 }
 
 function onContentScroll(): void {
@@ -159,7 +162,7 @@ function onContentScroll(): void {
 
   // Load more when near the top
   if (content.scrollTop < 300) {
-    loadMoreChunks(1);
+    loadMoreChunks(1, state);
   }
 
   // Hide overlay when scrolled to the very bottom

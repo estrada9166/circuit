@@ -54,13 +54,16 @@ const TERMINAL_THEME = {
   white: '#f5f5f7',
 };
 
+const LIVE_SCROLLBACK_LINES = 10000;
+
 const TERMINAL_OPTIONS = {
   theme: TERMINAL_THEME,
   fontSize: 13,
   fontFamily: '"SF Mono", Menlo, monospace',
   cursorBlink: true,
   allowProposedApi: true,
-  scrollback: 50000,
+  // Keep the live xterm buffer bounded; full session history is already persisted to disk.
+  scrollback: LIVE_SCROLLBACK_LINES,
 };
 
 function hexToRgba(hex: string, alpha: number): string {
@@ -171,12 +174,15 @@ export function makeTerminalSession(
   });
   disposables.push(resizeDisposable);
 
-  // Scroll-to-top: show history overlay with disk-backed log
+  // When the user reaches the top of xterm's live scrollback, show the disk-backed history overlay.
   const scrollDisposable = terminal.onScroll(() => {
-    if (terminal.buffer.active.viewportY === 0) {
+    const buffer = terminal.buffer.active;
+    if (buffer.type === 'normal' && buffer.baseY > 0 && buffer.viewportY === 0) {
       showHistoryOverlay(id, wrapper, () => {
         terminal.focus();
       });
+    } else {
+      hideHistoryOverlay();
     }
   });
   disposables.push(scrollDisposable);
